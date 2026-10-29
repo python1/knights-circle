@@ -1,3 +1,4 @@
+import {mountRooms} from './room-ui.js';
 import {providers,listModels,generate} from './providers.js';
 import {beginOAuth,finishOAuth} from './oauth.js';
 const $=s=>document.querySelector(s),keys=new Map(),catalogs=new Map(),tested=new Set();
@@ -16,7 +17,7 @@ function render(){
   }
 }
 function populate(){const select=$('#model');select.replaceChildren();for(const model of catalogs.get(selected)||[]){const option=document.createElement('option');option.value=model.id;option.textContent=model.id;select.append(option);}$('#test-panel').hidden=!select.options.length;}
-function open(id){selected=id;$('#dialog-title').textContent=providers.find(p=>p.id===id).name;$('#api-key').value='';$('#api-key').placeholder=keys.has(id)?'Key held in memory; paste to replace':'Paste your own API key';$('#api-key').hidden=$('#key-label').hidden=id==='ollama';$('#local-help').hidden=id!=='ollama';$('#oauth').hidden=id!=='openrouter';$('#connection-status').textContent='';$('#test-output').textContent='';$('#usage').textContent='';populate();dialog.showModal();}
+function open(id){if(controller)return;selected=id;$('#dialog-title').textContent=providers.find(p=>p.id===id).name;$('#api-key').value='';$('#api-key').placeholder=keys.has(id)?'Key held in memory; paste to replace':'Paste your own API key';$('#api-key').hidden=$('#key-label').hidden=id==='ollama';$('#local-help').hidden=id!=='ollama';$('#oauth').hidden=id!=='openrouter';$('#connection-status').textContent='';$('#test-output').textContent='';$('#usage').textContent='';populate();dialog.showModal();}
 function busy(value){$('#verify').disabled=value;$('#run-test').disabled=value;$('#oauth').disabled=value;$('#disconnect').disabled=value;$('#api-key').disabled=value;$('#model').disabled=value;$('#stop-test').disabled=!value;}
 function stop(){controller?.abort();}
 dialog.addEventListener('close',()=>{stop();$('#api-key').value='';});$('#close-dialog').onclick=()=>dialog.close();$('#stop-test').onclick=stop;
@@ -26,3 +27,5 @@ $('#connect-form').onsubmit=async event=>{event.preventDefault();if(controller)r
 $('#run-test').onclick=async()=>{if(controller)return;const prompt=$('#prompt').value.trim();if(!prompt){$('#connection-status').textContent='Enter a test prompt.';return;}controller=new AbortController();busy(true);$('#test-output').textContent='';$('#usage').textContent='';$('#connection-status').textContent='Waiting for the provider…';let received=false;try{for await(const event of generate({provider:selected,key:keys.get(selected),model:$('#model').value,messages:[{role:'user',content:prompt}],signal:AbortSignal.any([controller.signal,AbortSignal.timeout(120000)])})){if(event.text){received=true;$('#test-output').textContent+=event.text;}if(event.usage)$('#usage').textContent='Provider-reported usage: '+JSON.stringify(event.usage);}if(!received)throw new Error('No text returned. The model may require different settings or a larger output limit.');tested.add(selected);render();$('#connection-status').textContent='Streaming test completed.';}catch(e){$('#connection-status').textContent=e.name==='AbortError'?'Stopped. The provider may still charge for work already performed.':e.name==='TimeoutError'?'Provider timed out. Partial usage may still be billed.':e.message;}finally{controller=null;busy(false);}};
 render();
 finishOAuth().then(key=>{if(key){keys.set('openrouter',key);open('openrouter');$('#connection-status').textContent='Sign-in complete. Fetch models to verify access.';}}).catch(e=>{$('#global-status').textContent=e.message;});
+
+mountRooms({catalogs,keyFor:id=>keys.get(id),generate});
