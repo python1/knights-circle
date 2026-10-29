@@ -1,0 +1,19 @@
+{
+  "id": "/",
+  "name": "Knights Circle",
+  "short_name": "Knights Circle",
+  "description": "A private workspace for conversations between your models.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f7f9f6",
+  "theme_color": "#265b46",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
