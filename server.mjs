@@ -1,6 +1,6 @@
 import http from 'node:http';
 import {readFile} from 'node:fs/promises';
-const files = new Map([['/', ['index.html','text/html']],['/src/memory.js',['src/memory.js','text/javascript']],['/src/rooms.js',['src/rooms.js','text/javascript']],['/src/room-ui.js',['src/room-ui.js','text/javascript']],['/src/app.js',['src/app.js','text/javascript']],['/src/providers.js',['src/providers.js','text/javascript']],['/src/oauth.js',['src/oauth.js','text/javascript']],['/src/style.css',['src/style.css','text/css']]]);
+const files = new Map([['/', ['index.html','text/html']],['/src/memory.js',['src/memory.js','text/javascript']],['/src/rooms.js',['src/rooms.js','text/javascript']],['/src/room-ui.js',['src/room-ui.js','text/javascript']],['/src/app.js',['src/app.js','text/javascript']],['/src/providers.js',['src/providers.js','text/javascript']],['/src/oauth.js',['src/oauth.js','text/javascript']],['/src/markdown.js',['src/markdown.js','text/javascript']],['/src/style.css',['src/style.css','text/css']]]);
 export const server = http.createServer(async(req,res)=>{
   const entry=files.get(new URL(req.url,'http://localhost').pathname);
   res.setHeader('Content-Security-Policy', "default-src 'none'; script-src 'self'; style-src 'self'; connect-src https://api.openai.com https://api.anthropic.com https://api.x.ai https://generativelanguage.googleapis.com https://openrouter.ai http://localhost:11434 http://127.0.0.1:11434; base-uri 'none'; form-action 'self'; frame-ancestors 'none'");

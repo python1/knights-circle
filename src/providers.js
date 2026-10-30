@@ -30,7 +30,7 @@ export async function listModels(id,key,signal,fetcher=fetch){
     const data=await(await request(url.href,{headers:p.headers,signal},fetcher)).json();
     const rows=id==='ollama'?data.models:id==='google'?data.models:data.data;
     if(!Array.isArray(rows))throw new Error('Provider returned an unsupported model catalog.');
-    result.push(...rows.filter(m=>id!=='google'||m.supportedGenerationMethods?.includes('generateContent')).map(m=>({id:id==='ollama'?m.name:id==='google'?m.name.replace(/^models\//,''):m.id,name:m.displayName||m.name||m.id})));
+    result.push(...rows.filter(m=>id!=='google'||m.supportedGenerationMethods?.includes('generateContent')).map(m=>({id:id==='ollama'?m.name:id==='google'?m.name.replace(/^models\//,''):m.id,name:m.displayName||m.name||m.id,...(id==='openrouter'&&m.supported_parameters?.includes('reasoning')?{reasoning:m.reasoning||{}}:{})})));
     next=id==='anthropic'&&data.has_more?data.last_id:data.nextPageToken;
     if(!next)break;
     if(page===19)throw new Error('Model catalog pagination limit reached.');
@@ -57,19 +57,26 @@ async function ollamaThinks(p,model,signal,fetcher){
   try{return !!(await(await request(p.base+'/api/show',{method:'POST',headers:p.headers,body:JSON.stringify({model}),signal},fetcher)).json()).capabilities?.includes('thinking');}
   catch(e){if(e.name==='AbortError'||e.name==='TimeoutError')throw e;return false;}
 }
-export async function* generate({provider:id,key,model,messages,system='',signal,maxTokens=256},fetcher=fetch){
+// OpenRouter: turn reasoning off where the catalog says it is optional, otherwise ask for the lowest effort the model accepts.
+// reasoning.exclude is not used: it still spends the tokens and only hides the reasoning.
+export function reasoningControl(info){
+  const r=info?.reasoning;if(!r)return undefined;
+  if(r.mandatory===false)return {enabled:false};
+  return {effort:Array.isArray(r.supported_efforts)?r.supported_efforts.filter(e=>e!=='none').at(-1)||'low':'low'};
+}
+export async function* generate({provider:id,key,model,messages,system='',signal,maxTokens=256,info},fetcher=fetch){
   if(!model)throw new Error('Choose a model.');
   const p=config(id,key);let path='/chat/completions',body={model,messages:[...(system?[{role:'system',content:system}]:[]),...messages],stream:true};
   if(id==='anthropic'){path='/messages';body={model,system,messages,max_tokens:maxTokens,stream:true};}
   else if(id==='google'){path=`/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse`;body={systemInstruction:{parts:[{text:system||'Respond helpfully.'}]},contents:messages.map(m=>({role:m.role==='assistant'?'model':'user',parts:[{text:m.content}]})),generationConfig:{maxOutputTokens:maxTokens}};}
   else if(id==='ollama'){path='/api/chat';body.options={num_predict:maxTokens};if(await ollamaThinks(p,model,signal,fetcher))body.think=false;}
-  else {body[id==='openai'?'max_completion_tokens':'max_tokens']=maxTokens;body.stream_options={include_usage:true};}
+  else {body[id==='openai'?'max_completion_tokens':'max_tokens']=maxTokens;body.stream_options={include_usage:true};if(id==='openrouter'){const reasoning=reasoningControl(info);if(reasoning)body.reasoning=reasoning;}}
   const response=await request(p.base+path,{method:'POST',headers:p.headers,body:JSON.stringify(body),signal},fetcher);
   for await(const data of records(response.body,id==='ollama')){
     if(data.error||data.type==='error')throw new Error('Provider stopped the stream with an error.');
     const text=id==='anthropic'?data.delta?.text:id==='google'?data.candidates?.[0]?.content?.parts?.filter(p=>!p.thought).map(p=>p.text||'').join(''):id==='ollama'?data.message?.content:data.choices?.[0]?.delta?.content;
     const usage=id==='google'?data.usageMetadata:id==='ollama'&&data.done?{input_tokens:data.prompt_eval_count,output_tokens:data.eval_count}:data.usage||data.message?.usage;
-    const reasoning=id==='ollama'?data.message?.thinking:undefined;
+    const reasoning=id==='ollama'?data.message?.thinking:id==='openrouter'?data.choices?.[0]?.delta?.reasoning:undefined;
     if(reasoning)yield {reasoning};if(text)yield {text};if(usage)yield {usage};
   }
 }
