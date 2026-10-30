@@ -52,12 +52,17 @@ export async function* records(body,ndjson=false){
     if(done){if(ndjson&&buffer.trim())yield JSON.parse(buffer);else if(!ndjson){if(buffer.startsWith('data:'))data.push(buffer.slice(5).trim());if(data.length)yield parseEvent();}break;}
   }}finally{await reader.cancel().catch(()=>{});reader.releaseLock();}
 }
+async function ollamaThinks(p,model,signal,fetcher){
+  // Only models that report the thinking capability accept think:false; older servers omit capabilities.
+  try{return !!(await(await request(p.base+'/api/show',{method:'POST',headers:p.headers,body:JSON.stringify({model}),signal},fetcher)).json()).capabilities?.includes('thinking');}
+  catch(e){if(e.name==='AbortError'||e.name==='TimeoutError')throw e;return false;}
+}
 export async function* generate({provider:id,key,model,messages,system='',signal,maxTokens=256},fetcher=fetch){
   if(!model)throw new Error('Choose a model.');
   const p=config(id,key);let path='/chat/completions',body={model,messages:[...(system?[{role:'system',content:system}]:[]),...messages],stream:true};
   if(id==='anthropic'){path='/messages';body={model,system,messages,max_tokens:maxTokens,stream:true};}
   else if(id==='google'){path=`/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse`;body={systemInstruction:{parts:[{text:system||'Respond helpfully.'}]},contents:messages.map(m=>({role:m.role==='assistant'?'model':'user',parts:[{text:m.content}]})),generationConfig:{maxOutputTokens:maxTokens}};}
-  else if(id==='ollama'){path='/api/chat';body.options={num_predict:maxTokens};}
+  else if(id==='ollama'){path='/api/chat';body.options={num_predict:maxTokens};if(await ollamaThinks(p,model,signal,fetcher))body.think=false;}
   else {body[id==='openai'?'max_completion_tokens':'max_tokens']=maxTokens;body.stream_options={include_usage:true};}
   const response=await request(p.base+path,{method:'POST',headers:p.headers,body:JSON.stringify(body),signal},fetcher);
   let terminal=false;
@@ -66,7 +71,8 @@ export async function* generate({provider:id,key,model,messages,system='',signal
     if(data.error||data.type==='error')throw new Error('Provider stopped the stream with an error.');
     const text=id==='anthropic'?data.delta?.text:id==='google'?data.candidates?.[0]?.content?.parts?.filter(p=>!p.thought).map(p=>p.text||'').join(''):id==='ollama'?data.message?.content:data.choices?.[0]?.delta?.content;
     const usage=id==='google'?data.usageMetadata:id==='ollama'&&data.done?{input_tokens:data.prompt_eval_count,output_tokens:data.eval_count}:data.usage||data.message?.usage;
-    if(text)yield {text};if(usage&&Object.values(usage).some(v=>v!==undefined))yield {usage};
+    const reasoning=id==='ollama'?data.message?.thinking:undefined;
+    if(reasoning)yield {reasoning};if(text)yield {text};if(usage&&Object.values(usage).some(v=>v!==undefined))yield {usage};
   }
   if(!terminal)throw new Error('The provider stream ended unexpectedly. Partial output may have been billed.');
 }
