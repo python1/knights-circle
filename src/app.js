@@ -32,5 +32,5 @@ $('#run-test').onclick=async()=>{if(controller)return;const prompt=$('#prompt').
 render();
 (location.hash.startsWith('#share=')?Promise.resolve(null):finishOAuth()).then(key=>{if(key){keys.set('openrouter',key);open('openrouter');$('#connection-status').textContent='Sign-in complete. Fetch models to verify access.';}}).catch(e=>{$('#global-status').textContent=e.message;});
 
-if(!showShared())mountRooms({catalogs,keyFor:id=>keys.get(id),generate});
+if(!showShared())mountRooms({catalogs,keyFor:id=>keys.get(id),generate:args=>generate({...args,info:catalogs.get(args.provider)?.find(m=>m.id===args.model)})});
 if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{$('#global-status')&&($('#global-status').textContent='Offline setup unavailable. The workspace still works online.');});
