@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync,readdirSync} from 'node:fs';
-import {verifyPack,checkStillFresh,explainRefusal,relevantRecords,memoryPrompt,parseProposals,findSource,buildExport,unzip,readPackFiles,validPins,packIdentity} from '../src/memory-pack.js';
+import {verifyPack,checkStillFresh,explainRefusal,relevantRecords,memoryPrompt,parseProposals,findSource,proposalStatus,addProposal,mergeProposals,buildExport,unzip,readPackFiles,validPins,packIdentity} from '../src/memory-pack.js';
 import {verifyPackEntries} from '../src/vm-verify.js';
 // Packs signed with throwaway test keys by the real sign-pack (verified-memory-mcp 0.4.1); the private keys were discarded.
 const A='SHA256:2hmT6b4AqyaN26MUxTZNy4VBsA6bVfI+stICfueHRZI',B='SHA256:IMLnvrLRjCpML2rsGp499mxl/WSXCuQrXizC3lNneNI';
@@ -62,6 +62,43 @@ test('proposals are parsed from a reply and traced to the exact earlier message 
   assert.deepEqual(findSource(room,'we meet every Tuesday','r'),{kind:'user',id:'objective',speaker:'You',text:room.objective,at:1000,start:21});
   assert.equal(findSource(room,'green and gold','r').id,'u');
   assert.equal(findSource(room,'Plan below','r'),null);
+});
+test('a model quoting its own earlier message is labelled self-quoted and cannot be approved; other sources still win',async()=>{
+  const room={objective:'Keep the greenhouse healthy.',messages:[
+    {id:'l1',memberId:'lead',speaker:'Lead · x',text:'Tally will monitor daily temperatures in the greenhouse.',status:'complete',at:1000},
+    {id:'c1',memberId:'critic',speaker:'Critic · y',text:'Agreed, watering is on Fridays.',status:'complete',at:2000},
+    {id:'l2',memberId:'lead',speaker:'Lead · x',text:'PROPOSE MEMORY: Tally monitors temperatures | QUOTE: "Tally will monitor daily temperatures"',status:'complete',at:3000}]};
+  const self=findSource(room,'Tally will monitor daily temperatures','l2');
+  assert.equal(self.kind,'self');assert.equal(self.id,'l1');assert.equal(proposalStatus(self),'self-quoted');
+  assert.equal(findSource(room,'watering is on Fridays','l2').kind,'agent');assert.equal(proposalStatus(findSource(room,'watering is on Fridays','l2')),'pending');
+  room.messages.splice(2,0,{id:'u1',speaker:'You',text:'Yes: Tally will monitor daily temperatures.',status:'complete',at:2500});
+  assert.equal(findSource(room,'Tally will monitor daily temperatures','l2').kind,'user');
+  const pack=await verifyPack(load('signed-a'),{pins:A,now:NOW}),record=[...pack.records.values()][0],q=record.evidence[0].quote;
+  const fromRecord=findSource({objective:'',messages:[{id:'r',memberId:'lead',speaker:'Lead · x',text:'',status:'complete',at:1}]},q,'r',pack.records.values());
+  assert.equal(fromRecord.kind,'record');assert.equal(fromRecord.id,record.record_id);assert.equal(fromRecord.role,record.role);assert.equal(proposalStatus(fromRecord),'pending');
+  assert.equal(proposalStatus(null),'unsupported');
+});
+test('a proposal quoting a verified record exports with that record’s role and speaker',async()=>{
+  const pack=await verifyPack(load('signed-a'),{pins:A,now:NOW}),record=[...pack.records.values()][0],q=record.evidence[0].quote;
+  const source=findSource({objective:'',messages:[{id:'r',memberId:'m',speaker:'Lead',text:'',status:'complete',at:1}]},q,'r',pack.records.values());
+  const out=await buildExport(pack,[{statement:'Restated fact.',quote:q,source}],{room:'R',now:NOW});
+  assert.equal(out.records[0].role,record.role);assert.equal(out.records[0].evidence[0].quote,q);
+});
+test('the same fact proposed twice merges into one proposal that remembers every proposer',()=>{
+  const list=[];
+  const p=(by,statement,status='pending',source={kind:'user'})=>({id:by+statement,by,statement,quote:'q',source,status});
+  assert.equal(addProposal(list,p('Lead','Tally monitors daily temperatures.','self-quoted',{kind:'self'})),true);
+  assert.equal(addProposal(list,p('Critic','tally monitors  daily temperatures')),false);
+  assert.equal(addProposal(list,p('Critic','“Tally monitors daily temperatures”!')),false);
+  assert.equal(list.length,1);assert.deepEqual(list[0].alsoBy,['Critic']);
+  assert.equal(list[0].status,'pending');assert.equal(list[0].source.kind,'user');
+  list[0].status='rejected';addProposal(list,p('Scout','Tally monitors daily temperatures'));
+  assert.equal(list[0].status,'rejected');assert.deepEqual(list[0].alsoBy,['Critic','Scout']);
+  assert.equal(addProposal(list,p('Lead','Watering is on Fridays')),true);assert.equal(list.length,2);
+  const saved=[p('Lead · x','A fact','pending',{kind:'agent',speaker:'Lead · x'}),p('Critic · y','A fact.','approved',{kind:'agent',speaker:'Lead · x'}),p('Lead · x','B fact','pending',{kind:'agent',memberId:'m1',speaker:'Lead · x'})];
+  const merged=mergeProposals(saved);
+  assert.equal(merged.length,2);assert.equal(merged[0].status,'approved');assert.equal(merged[0].source.kind,'agent');assert.equal(merged[0].by,'Lead · x');assert.deepEqual(merged[0].alsoBy,['Critic · y']);
+  assert.equal(merged[1].status,'pending');
 });
 test('approved proposals export as an unsigned pack the shared verifier accepts, existing records unchanged',async()=>{
   const pack=await verifyPack(load('signed-a'),{pins:A,now:NOW});
