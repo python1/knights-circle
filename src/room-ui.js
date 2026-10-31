@@ -11,7 +11,7 @@ export function mountRooms({catalogs,keyFor,generate,working=new Map()}){
  $('#room-search').oninput=refreshSaved;
  $('#save-room').onclick=()=>{sync();try{saveRoom(room);room.notice='Room saved in this browser.';refreshSaved();}catch(e){room.notice=e.message;}render();};
  function refreshModels(){const select=$('#member-model'),previous=select.value,all=[...catalogs].flatMap(([provider,models])=>models.map(m=>({...m,provider}))),shown=$('#room-free-only').checked?all.filter(m=>m.free):all,value=m=>JSON.stringify({provider:m.provider,model:m.id});select.replaceChildren(...shown.map(m=>new Option(`${m.provider} / ${modelLabel(m)}`,value(m))));const pick=shown.find(m=>value(m)===previous)||pickDefault(shown,[...working.values()]);if(pick)select.value=value(pick);$('#model-help').textContent=shown.length?'Each participant receives the whole transcript, including content from other providers.':all.length?'No free models connected. Clear “Free models only” to see all of them.':'Connect a provider and fetch its models first.';}
- $('#room-free-only').onchange=refreshModels;
+ $('#room-free-only').onchange=refreshModels;document.addEventListener('catalogs-changed',refreshModels);
  function showRooms(){ $('#connections-view').hidden=true;host.hidden=false;refreshModels();}
  $('#show-rooms').onclick=$('#show-rooms-mobile').onclick=showRooms;$('#show-connections').onclick=()=>{host.hidden=true;$('#connections-view').hidden=false;};
  for(const role of Object.keys(rolePresets)){const o=document.createElement('option');o.textContent=role;$('#member-role').append(o);}$('#role-prompt').value=rolePresets.Lead;
