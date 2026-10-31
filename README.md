@@ -27,6 +27,8 @@ This client-side BYOK design requires security review before public release. Ope
 
 Ollama targets only http://127.0.0.1:11434, requires an installed/running local instance and origin configuration. HTTPS public pages, browser local-network permissions, CORS, and mobile device access require real testing. A phone's loopback is not a desktop's loopback.
 
+Browsers differ here. From the https site, Safari (and every iOS browser, all WebKit) blocks requests to http://127.0.0.1 as mixed content, so local Ollama works only in Chromium browsers and Firefox. Chrome first asks for local network access, and a declined prompt blocks the request. The connection guide detects both cases instead of reporting that Ollama is off. Checked in Safari 26.3.1 and Chrome 156 on macOS (October 2026).
+
 ## Phases
 
 1. Foundation/provider connections: model catalogs, PKCE, BYOK, streaming smoke test.
