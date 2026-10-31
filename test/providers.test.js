@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {providers,listModels,generate,records,request,reasoningControl,freePricing} from '../src/providers.js';
+import {providers,listModels,generate,records,request,reasoningControl,freePricing,FREE_BUSY,httpMessage} from '../src/providers.js';
 const stream=text=>new ReadableStream({start(c){const bytes=new TextEncoder().encode(text);for(let i=0;i<bytes.length;i+=3)c.enqueue(bytes.slice(i,i+3));c.close();}});
 test('fragmented UTF-8 and CRLF SSE retain Unicode',async()=>{const result=[];for await(const item of records(stream('data: {"text":"hello 🌿"}\r\n\r\ndata: [DONE]\n')))result.push(item);assert.deepEqual(result,[{text:'hello 🌿'},{__done:true}]);});
 test('NDJSON retains final record',async()=>{const result=[];for await(const item of records(stream('{"a":1}\n{"b":2}'),true))result.push(item);assert.deepEqual(result,[{a:1},{b:2}]);});
@@ -25,3 +25,16 @@ test('OpenRouter requests carry the reasoning control and stream reasoning separ
 test('reasoning controls are only sent to OpenRouter models that support them',async()=>{for(const [provider,info] of [['openrouter',{id:'plain'}],['openrouter',undefined],['openai',{reasoning:{mandatory:false}}]]){let sent;for await(const e of generate({provider,key:'k',model:'m',messages:[],info},async(url,init)=>{sent=JSON.parse(init.body);return sse([{choices:[{delta:{content:'ok'},finish_reason:'stop'}]}]);}))void e;assert.ok(!('reasoning' in sent),provider);}});
 test('only fully $0 pricing counts as free',()=>{assert.equal(freePricing({prompt:'0',completion:'0',request:'0'}),true);assert.equal(freePricing({prompt:'0',completion:'0.000001'}),false);assert.equal(freePricing({prompt:'-1',completion:'-1'}),false);assert.equal(freePricing({prompt:'0',completion:'0',overrides:[{min_prompt_tokens:1,prompt:'0.1'}]}),false);assert.equal(freePricing({prompt:'0',completion:'0',overrides:[]}),true);assert.equal(freePricing({prompt:'',completion:'0'}),false);assert.equal(freePricing(undefined),false);assert.equal(freePricing({completion:'0'}),false);});
 test('catalog marks Ollama and $0 OpenRouter models free, others paid',async()=>{const or=await listModels('openrouter','k',undefined,async()=>Response.json({data:[{id:'a:free',pricing:{prompt:'0',completion:'0'}},{id:'b',pricing:{prompt:'0.1',completion:'0.2'}},{id:'c'}]}));assert.deepEqual(or.map(m=>m.free),[true,false,false]);const local=await listModels('ollama','',undefined,async()=>Response.json({models:[{name:'qwen'}]}));assert.equal(local[0].free,true);const openai=await listModels('openai','k',undefined,async()=>Response.json({data:[{id:'gpt'}]}));assert.equal(openai[0].free,false);});
+const orFree={id:'x:free',free:true};
+const sseOf=chunks=>new Response(stream(chunks.map(c=>'data: '+JSON.stringify(c)+'\n\n').join('')+'data: [DONE]\n\n'));
+const drain=async args=>{const events=[];for await(const e of generate({provider:'openrouter',key:'k',model:'x:free',messages:[],...args.opts},args.fetcher))events.push(e);return events;};
+test('free models that are rate-limited or silent get one plain message',async()=>{
+  await assert.rejects(drain({opts:{info:orFree},fetcher:async()=>new Response('{"error":"secret upstream detail"}',{status:429})}),e=>e.message===FREE_BUSY);
+  await assert.rejects(drain({opts:{info:orFree},fetcher:async()=>sseOf([{error:{code:429,message:'secret'}}])}),e=>e.message===FREE_BUSY);
+  await assert.rejects(drain({opts:{info:orFree},fetcher:async()=>sseOf([{choices:[{delta:{},finish_reason:'stop'}]}])}),e=>e.message===FREE_BUSY);
+});
+test('paid models keep the general messages',async()=>{
+  await assert.rejects(drain({opts:{info:{id:'paid',free:false}},fetcher:async()=>new Response('',{status:429})}),e=>e.message===httpMessage(429)&&!e.message.includes('free'));
+  assert.deepEqual(await drain({opts:{info:{id:'paid'}},fetcher:async()=>sseOf([{choices:[{delta:{},finish_reason:'stop'}]}])}),[]);
+});
+test('HTTP errors read as plain language and keep the status',()=>{assert.match(httpMessage(401),/rejected this key.*\(HTTP 401\)/);assert.match(httpMessage(503),/having trouble.*\(HTTP 503\)/);assert.match(httpMessage(418),/\(HTTP 418\)/);});
