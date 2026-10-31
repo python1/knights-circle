@@ -15,11 +15,14 @@ function config(id,key){
   else if(id!=='ollama')headers.Authorization=`Bearer ${key}`;
   return {...p,headers};
 }
+export const FREE_BUSY='This free model is busy or out of free requests. Try again later or pick another model.';
+const httpReasons={400:'The provider rejected this request. Try another model or a lower output limit.',401:'The provider rejected this key. Check it and connect again.',402:'This account has no credit for this model. Pick a free model, or add credit with the provider.',403:'This key isn’t allowed to do this. Check the account’s access settings with the provider.',404:'This model or service isn’t available right now. Pick another model.',408:'The provider took too long to answer. Try again later.',413:'This request is too large for the model. Shorten the prompt or start a new room.',429:'The provider is limiting requests right now. Try again later or pick another model.'};
+export function httpMessage(status){return `${httpReasons[status]||(status>=500?'The provider is having trouble right now. Try again later or pick another model.':'The provider returned an error.')} (HTTP ${status})`;}
 export async function request(url,init,fetcher=fetch){
   let response;
   try{response=await fetcher(url,{...init,redirect:'error',credentials:'omit',referrerPolicy:'no-referrer'});}catch(e){if(e.name==='AbortError')throw e;throw new Error('Connection failed. Check network access, provider browser support, and local permissions.');}
   // Never surface provider error bodies: they may contain credentials or prompt data.
-  if(!response.ok)throw Object.assign(new Error(`Provider returned HTTP ${response.status}. Check your key, account access, and quota.`),{status:response.status});
+  if(!response.ok)throw Object.assign(new Error(httpMessage(response.status)),{status:response.status});
   return response;
 }
 // A refused origin and a stopped server both look like network errors to the page. A no-cors request still
@@ -79,12 +82,14 @@ export async function* generate({provider:id,key,model,messages,system='',signal
   else if(id==='google'){path=`/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse`;body={systemInstruction:{parts:[{text:system||'Respond helpfully.'}]},contents:messages.map(m=>({role:m.role==='assistant'?'model':'user',parts:[{text:m.content}]})),generationConfig:{maxOutputTokens:maxTokens}};}
   else if(id==='ollama'){path='/api/chat';body.options={num_predict:maxTokens};if(await ollamaThinks(p,model,signal,fetcher))body.think=false;}
   else {body[id==='openai'?'max_completion_tokens':'max_tokens']=maxTokens;body.stream_options={include_usage:true};if(id==='openrouter'){const reasoning=reasoningControl(info);if(reasoning)body.reasoning=reasoning;}}
-  const response=await request(p.base+path,{method:'POST',headers:p.headers,body:JSON.stringify(body),signal},fetcher);
+  const free=!!info?.free&&id!=='ollama';let response,said=false;
+  try{response=await request(p.base+path,{method:'POST',headers:p.headers,body:JSON.stringify(body),signal},fetcher);}catch(e){if(free&&e.status===429)throw Object.assign(new Error(FREE_BUSY),{status:429});throw e;}
   for await(const data of records(response.body,id==='ollama')){
-    if(data.error||data.type==='error')throw new Error('Provider stopped the stream with an error.');
+    if(data.error||data.type==='error')throw new Error(free&&[data.error?.code,data.error?.status].includes(429)?FREE_BUSY:'The provider stopped this reply with an error. Try again or pick another model.');
     const text=id==='anthropic'?data.delta?.text:id==='google'?data.candidates?.[0]?.content?.parts?.filter(p=>!p.thought).map(p=>p.text||'').join(''):id==='ollama'?data.message?.content:data.choices?.[0]?.delta?.content;
     const usage=id==='google'?data.usageMetadata:id==='ollama'&&data.done?{input_tokens:data.prompt_eval_count,output_tokens:data.eval_count}:data.usage||data.message?.usage;
     const reasoning=id==='ollama'?data.message?.thinking:id==='openrouter'?data.choices?.[0]?.delta?.reasoning:undefined;
-    if(reasoning)yield {reasoning};if(text)yield {text};if(usage)yield {usage};
+    if(reasoning||text)said=true;if(reasoning)yield {reasoning};if(text)yield {text};if(usage)yield {usage};
   }
+  if(free&&!said)throw new Error(FREE_BUSY);
 }
