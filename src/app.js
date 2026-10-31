@@ -42,5 +42,5 @@ render();
 if(ollamaRemembered())listModels('ollama',undefined,AbortSignal.timeout(10000)).then(models=>{if(catalogs.has('ollama'))return;catalogs.set('ollama',models);render();if(selected==='ollama'&&dialog.open)populate();}).catch(()=>{});
 (location.hash.startsWith('#share=')?Promise.resolve(null):finishOAuth()).then(key=>{if(key){keys.set('openrouter',key);open('openrouter');$('#connection-status').textContent='Sign-in complete. Fetch models to verify access.';}}).catch(e=>{$('#global-status').textContent=e.message;});
 
-if(!showShared())mountRooms({catalogs,keyFor:id=>keys.get(id),generate:args=>generate({...args,info:catalogs.get(args.provider)?.find(m=>m.id===args.model)})});
+if(!showShared())mountRooms({catalogs,working,keyFor:id=>keys.get(id),generate:args=>generate({...args,info:catalogs.get(args.provider)?.find(m=>m.id===args.model)})});
 if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{$('#global-status')&&($('#global-status').textContent='Offline setup unavailable. The workspace still works online.');});
