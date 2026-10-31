@@ -279,6 +279,7 @@ summary{cursor:pointer;min-height:32px;display:list-item}
 .agents-toggle:before{content:'';width:8px;height:8px;border-right:2px solid var(--amber-text);border-bottom:2px solid var(--amber-text);transform:rotate(-45deg);transition:transform .15s;margin:0 4px}
 .agents-panel[open]>.agents-toggle:before{transform:rotate(45deg)}
 .agents-toggle .count{margin-left:0}
+.agents-subline{margin:0 0 4px 26px;font-size:13px}
 .agents-panel[open]>.section-heading{margin-top:12px}
 .agents-body{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
 .agents-body>div{padding:20px;min-width:0}
