@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {providers,listModels,generate,records,request,reasoningControl,freePricing,FREE_BUSY,httpMessage} from '../src/providers.js';
+import {providers,listModels,generate,records,request,reasoningControl,freePricing,FREE_BUSY,httpMessage,modelLabel,pickDefault} from '../src/providers.js';
 const stream=text=>new ReadableStream({start(c){const bytes=new TextEncoder().encode(text);for(let i=0;i<bytes.length;i+=3)c.enqueue(bytes.slice(i,i+3));c.close();}});
 test('fragmented UTF-8 and CRLF SSE retain Unicode',async()=>{const result=[];for await(const item of records(stream('data: {"text":"hello 🌿"}\r\n\r\ndata: [DONE]\n')))result.push(item);assert.deepEqual(result,[{text:'hello 🌿'},{__done:true}]);});
 test('NDJSON retains final record',async()=>{const result=[];for await(const item of records(stream('{"a":1}\n{"b":2}'),true))result.push(item);assert.deepEqual(result,[{a:1},{b:2}]);});
@@ -38,3 +38,19 @@ test('paid models keep the general messages',async()=>{
   assert.deepEqual(await drain({opts:{info:{id:'paid'}},fetcher:async()=>sseOf([{choices:[{delta:{},finish_reason:'stop'}]}])}),[]);
 });
 test('HTTP errors read as plain language and keep the status',()=>{assert.match(httpMessage(401),/rejected this key.*\(HTTP 401\)/);assert.match(httpMessage(503),/having trouble.*\(HTTP 503\)/);assert.match(httpMessage(418),/\(HTTP 418\)/);});
+test('catalog flags non-chat models from catalog data and names',async()=>{
+  const or=await listModels('openrouter','k',undefined,async()=>Response.json({data:[{id:'a/chat:free',architecture:{input_modalities:['text','image'],output_modalities:['text']}},{id:'google/lyria-3-pro-preview',architecture:{input_modalities:['text'],output_modalities:['text','audio']}},{id:'nvidia/nemotron-3.5-content-safety:free',architecture:{input_modalities:['text'],output_modalities:['text']}},{id:'b/no-arch'}]}));
+  assert.deepEqual(Object.fromEntries(or.map(m=>[m.id,m.chat])),{'a/chat:free':true,'b/no-arch':true,'google/lyria-3-pro-preview':false,'nvidia/nemotron-3.5-content-safety:free':false});
+  const oa=await listModels('openai','k',undefined,async()=>Response.json({data:[{id:'gpt-5'},{id:'text-embedding-3-small'},{id:'tts-1'},{id:'gpt-image-1'},{id:'whisper-1'}]}));
+  assert.deepEqual(oa.filter(m=>m.chat).map(m=>m.id),['gpt-5']);
+});
+test('Ollama embedding-only models are not chat models',async()=>{const models=await listModels('ollama','',undefined,async(url,init)=>url.endsWith('/api/tags')?Response.json({models:[{name:'qwen3.5:4b'},{name:'nomic-embed-text'},{name:'old'}]}):Response.json(JSON.parse(init.body).model==='old'?{}:{capabilities:JSON.parse(init.body).model==='qwen3.5:4b'?['completion','thinking']:['embedding']}));assert.deepEqual(models.map(m=>[m.id,m.chat]),[['nomic-embed-text',false],['old',true],['qwen3.5:4b',true]]);});
+test('labels and default picks favour working free chat models',()=>{
+  const models=[{id:'a-safety:free',free:true,chat:false},{id:'b-reasoner:free',free:true,chat:true,reasoning:{mandatory:true}},{id:'c-chat:free',free:true,chat:true,reasoning:{mandatory:false}},{id:'d-paid',free:false,chat:true},{id:'nvidia/nemotron-3.5-super-vl:free',free:true,chat:true}];
+  assert.equal(modelLabel(models[0]),'a-safety:free · free · not a chat model');assert.equal(modelLabel(models[3]),'d-paid');
+  assert.equal(pickDefault(models).id,'nvidia/nemotron-3.5-super-vl:free');
+  assert.equal(pickDefault(models.slice(0,4)).id,'c-chat:free');
+  assert.equal(pickDefault(models,['d-paid']).id,'d-paid');
+  assert.equal(pickDefault(models,['a-safety:free']).id,'nvidia/nemotron-3.5-super-vl:free');
+  assert.equal(pickDefault([]),undefined);
+});
