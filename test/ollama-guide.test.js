@@ -16,7 +16,8 @@ test('offline guide covers install, allowing this site, starting Ollama, and pul
   assert.deepEqual(commands(ollamaGuide('offline','mac-brew',origin)),[`launchctl setenv OLLAMA_ORIGINS "${origin}"`,'brew services start ollama','ollama pull qwen3.5:4b']);
   assert.deepEqual(commands(ollamaGuide('offline','windows',origin)),[`setx OLLAMA_ORIGINS "${origin}"`,'ollama pull qwen3.5:4b']);
   assert.deepEqual(commands(ollamaGuide('offline','linux',origin)),['sudo systemctl edit ollama.service',`[Service]\nEnvironment="OLLAMA_ORIGINS=${origin}"`,'sudo systemctl daemon-reload','sudo systemctl start ollama','ollama pull qwen3.5:4b']);
-  assert.ok(ollamaGuide('offline','windows',origin).steps.some(s=>/Start menu/.test(s.text)));
+  const win=ollamaGuide('offline','windows',origin).steps,setx=win.findIndex(s=>/setx/.test(s.command));
+  assert.match(win[setx+1].text,/quit it.*Start menu/,'Windows restarts Ollama after setx so it picks up the setting');
   for(const [p] of platforms){const g=ollamaGuide('offline',p,origin);assert.equal(g.steps[0].link.href,'https://ollama.com/download');assert.match(g.steps.at(-1).text,/Fetch models/);assert.ok(g.notes[0].includes(origin));assert.doesNotMatch(JSON.stringify(g),/\bkey\b|credential/i);}
 });
 test('platform detection falls back to Mac',()=>{
@@ -51,6 +52,8 @@ test('Safari and blocked-permission guides say the browser stopped the request, 
     assert.ok(!ollamaGuide(problem,'mac-app',origin,'firefox').steps.some(s=>/local network/.test(s.text)));
     assert.match(ollamaGuide(problem,'mac-app',origin,'chromium').steps.at(-1).text,/Fetch models/);
   }
+  const steps=ollamaGuide('offline','mac-app',origin,'chromium').steps;
+  assert.ok(steps.findIndex(s=>/local network/.test(s.text))<steps.findIndex(s=>/ollama pull/.test(s.command)),'allow local network access comes before pulling a model');
 });
 test('probe tells a refusing server from a stopped one',async()=>{
   assert.equal(await probeOllama(async(url,init)=>{assert.equal(init.mode,'no-cors');assert.ok(url.endsWith('/api/version'));return new Response(null,{status:200});}),'refused');
