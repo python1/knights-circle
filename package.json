@@ -1,0 +1,14 @@
+{
+  "name": "knights-circle",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node server.mjs",
+    "test": "node --test",
+    "check": "node --check src/app.js && node --check src/providers.js && node --check src/oauth.js && node --check src/markdown.js && node --check src/ollama-guide.js",
+    "build": "node build.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

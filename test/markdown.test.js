@@ -1,0 +1,13 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {parseMarkdown,parseInline} from '../src/markdown.js';
+const kinds=md=>parseMarkdown(md).map(b=>b.type);
+test('headings, bold, and italic are parsed instead of shown raw',()=>{const [h,p]=parseMarkdown('### Plan\nUse **bold** and *italic* and _under_.');assert.equal(h.type,'heading');assert.equal(h.level,3);assert.deepEqual(p.lines[0].map(n=>n.type),['text','strong','text','em','text','em','text']);});
+test('single newlines inside a paragraph are kept as line breaks',()=>{const [p]=parseMarkdown('one\ntwo');assert.equal(p.lines.length,2);});
+test('lists may interrupt paragraphs and nest',()=>{const blocks=parseMarkdown('Options:\n1. **First**\n   - detail\n2. Second\n\n- a\n- b');assert.deepEqual(blocks.map(b=>b.type),['paragraph','list','list']);assert.equal(blocks[1].ordered,true);assert.equal(blocks[1].items.length,2);assert.deepEqual(blocks[1].items[0].children.map(b=>b.type),['paragraph','list']);assert.equal(blocks[2].items.length,2);});
+test('fenced code keeps its text verbatim, even unclosed while streaming',()=>{const [c]=parseMarkdown('```js\nconst a = **1**;\n```');assert.deepEqual([c.type,c.lang,c.text],['code','js','const a = **1**;']);assert.deepEqual(kinds('```\npartial'),['code']);});
+test('tables, quotes, and rules',()=>{assert.deepEqual(kinds('| A | B |\n|:--|--:|\n| 1 | 2 |\n\n> quoted\n\n---'),['table','quote','hr']);const [t]=parseMarkdown('| A | B |\n|:--|--:|\n| 1 | 2 |');assert.deepEqual(t.align,['left','right']);assert.equal(t.rows.length,1);});
+test('bullet-like emphasis is not a list or rule',()=>{assert.deepEqual(kinds('**Name:** value'),['paragraph']);});
+test('only safe links are linked; images and raw HTML stay inert text',()=>{const nodes=parseInline('[ok](https://example.com) [bad](javascript:alert(1)) ![img](https://t.example/p.png) <script>x</script>');assert.equal(nodes.filter(n=>n.type==='link').length,1);assert.equal(nodes.find(n=>n.type==='link').href,'https://example.com');assert.ok(nodes.some(n=>n.type==='text'&&n.text.includes('<script>')));});
+test('escapes and inline code suppress formatting',()=>{assert.deepEqual(parseInline('\\*not\\* `**raw**`'),[{type:'text',text:'*not* '},{type:'code',text:'**raw**'}]);});
+test('snake_case words are not italicized',()=>{assert.deepEqual(parseInline('use snake_case_name here'),[{type:'text',text:'use snake_case_name here'}]);});
