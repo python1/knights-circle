@@ -11,10 +11,13 @@ test('refused guide gives each platform the exact origin and restart steps',()=>
   assert.deepEqual(commands(ollamaGuide('refused','linux',origin)),['sudo systemctl edit ollama.service',`[Service]\nEnvironment="OLLAMA_ORIGINS=${origin}"`,'sudo systemctl daemon-reload && sudo systemctl restart ollama']);
   for(const [p] of platforms){const g=ollamaGuide('refused',p,origin);assert.ok(g.intro.includes(origin));assert.match(g.steps.at(-1).text,/Fetch models/);}
 });
-test('offline guide explains how to start Ollama on each platform',()=>{
-  assert.deepEqual(commands(ollamaGuide('offline','mac-brew',origin)),['brew services start ollama']);
-  assert.deepEqual(commands(ollamaGuide('offline','linux',origin)),['sudo systemctl start ollama']);
-  assert.match(ollamaGuide('offline','windows',origin).steps[0].text,/Start menu/);
+test('offline guide covers install, allowing this site, starting Ollama, and pulling a model',()=>{
+  assert.deepEqual(commands(ollamaGuide('offline','mac-app',origin)),[`launchctl setenv OLLAMA_ORIGINS "${origin}"`,'ollama pull qwen3.5:4b']);
+  assert.deepEqual(commands(ollamaGuide('offline','mac-brew',origin)),[`launchctl setenv OLLAMA_ORIGINS "${origin}"`,'brew services start ollama','ollama pull qwen3.5:4b']);
+  assert.deepEqual(commands(ollamaGuide('offline','windows',origin)),[`setx OLLAMA_ORIGINS "${origin}"`,'ollama pull qwen3.5:4b']);
+  assert.deepEqual(commands(ollamaGuide('offline','linux',origin)),['sudo systemctl edit ollama.service',`[Service]\nEnvironment="OLLAMA_ORIGINS=${origin}"`,'sudo systemctl daemon-reload','sudo systemctl start ollama','ollama pull qwen3.5:4b']);
+  assert.ok(ollamaGuide('offline','windows',origin).steps.some(s=>/Start menu/.test(s.text)));
+  for(const [p] of platforms){const g=ollamaGuide('offline',p,origin);assert.equal(g.steps[0].link.href,'https://ollama.com/download');assert.match(g.steps.at(-1).text,/Fetch models/);assert.ok(g.notes[0].includes(origin));assert.doesNotMatch(JSON.stringify(g),/\bkey\b|credential/i);}
 });
 test('platform detection falls back to Mac',()=>{
   assert.equal(detectPlatform({userAgentData:{platform:'Windows'}}),'windows');assert.equal(detectPlatform({platform:'MacIntel'}),'mac-app');assert.equal(detectPlatform({platform:'Linux x86_64'}),'linux');assert.equal(detectPlatform({}),'mac-app');

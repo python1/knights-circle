@@ -1,9 +1,9 @@
 export const providers = [
-  {id:'openrouter',name:'OpenRouter',initial:'OR',description:'One connection, many model families',base:'https://openrouter.ai/api/v1'},
-  {id:'openai',name:'OpenAI',initial:'O',description:'Connect your own API account',base:'https://api.openai.com/v1'},
-  {id:'anthropic',name:'Anthropic',initial:'A',description:'Connect your own API account',base:'https://api.anthropic.com/v1'},
-  {id:'xai',name:'xAI',initial:'X',description:'Connect your own API account',base:'https://api.x.ai/v1'},
-  {id:'google',name:'Google',initial:'G',description:'Connect your own API account',base:'https://generativelanguage.googleapis.com/v1beta'},
+  {id:'openrouter',name:'OpenRouter',initial:'OR',description:'One connection, many model families',base:'https://openrouter.ai/api/v1',keyUrl:'https://openrouter.ai/settings/keys'},
+  {id:'openai',name:'OpenAI',initial:'O',description:'Connect your own API account',base:'https://api.openai.com/v1',keyUrl:'https://platform.openai.com/api-keys'},
+  {id:'anthropic',name:'Anthropic',initial:'A',description:'Connect your own API account',base:'https://api.anthropic.com/v1',keyUrl:'https://platform.claude.com/settings/keys'},
+  {id:'xai',name:'xAI',initial:'X',description:'Connect your own API account',base:'https://api.x.ai/v1',keyUrl:'https://console.x.ai/'},
+  {id:'google',name:'Google',initial:'G',description:'Connect your own API account',base:'https://generativelanguage.googleapis.com/v1beta',keyUrl:'https://aistudio.google.com/app/apikey'},
   {id:'ollama',name:'Ollama',initial:'L',description:'Models running on this device',base:'http://127.0.0.1:11434'},
 ];
 function config(id,key){

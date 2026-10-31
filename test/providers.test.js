@@ -54,3 +54,5 @@ test('labels and default picks favour working free chat models',()=>{
   assert.equal(pickDefault(models,['a-safety:free']).id,'nvidia/nemotron-3.5-super-vl:free');
   assert.equal(pickDefault([]),undefined);
 });
+
+test('every key-based provider links to its own key page; Ollama has none',()=>{for(const p of providers){if(p.id==='ollama')assert.equal(p.keyUrl,undefined);else assert.match(p.keyUrl,/^https:\/\/[a-z.]+\//);}assert.equal(new Set(providers.map(p=>p.keyUrl&&new URL(p.keyUrl).host).filter(Boolean)).size,5);});
