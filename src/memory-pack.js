@@ -130,10 +130,19 @@ const compact = r => ({id: r.record_id, speaker: r.speaker, role: r.role, topic:
 
 export const PROPOSAL_FORMAT = 'PROPOSE MEMORY: <one sentence worth remembering> | QUOTE: "<exact words copied from an earlier message in this room>"';
 
-/** What models see: verified records and unverified proposals in separate, labelled sections, plus how to propose. */
-export function memoryPrompt({pack, proposals = [], query = ''}) {
+/**
+ * What models see: verified records and unverified proposals in separate, labelled sections, plus how to propose.
+ * An external agent gets only what its grants allow: `records` (both sections) and `propose` (the instructions).
+ */
+export function memoryPrompt({pack, proposals = [], query = '', records = true, propose = true}) {
   const shown = relevantRecords(pack.records, query);
   const open = proposals.filter(p => p.status === 'pending' || p.status === 'approved');
+  const instructions = [
+    'To propose a new memory, end your reply with one line per proposal (at most 3), exactly like:',
+    PROPOSAL_FORMAT,
+    'Only propose facts the user or another member stated in this room, quoting their words exactly. Quoting your own earlier messages is not evidence and cannot be approved. Don’t re-propose facts already listed above. Never present a proposal as verified.'
+  ];
+  if (!records) return propose ? instructions.join('\n') : '';
   return [
     'VERIFIED MEMORY (read-only; checked in the user’s browser before this turn)',
     `Source: Verified Memory pack “${pack.title}”, signed by the user’s pinned key ${pack.signature.fingerprint}, sequence ${pack.sequence}, valid until ${pack.expires}. Checksums and signature passed.`,
@@ -146,10 +155,7 @@ export function memoryPrompt({pack, proposals = [], query = ''}) {
     'Suggestions from models in this room. They are not facts: only the user can approve them, and even approved ones stay unverified until the user signs a new pack.',
     ...(open.length ? open.map(p => JSON.stringify({status: p.status === 'approved' ? 'approved by the user, not signed' : 'pending review', statement: p.statement, proposed_by: p.by})) : ['(none)']),
     'END PROPOSED MEMORY',
-    '',
-    'To propose a new memory, end your reply with one line per proposal (at most 3), exactly like:',
-    PROPOSAL_FORMAT,
-    'Only propose facts the user or another member stated in this room, quoting their words exactly. Quoting your own earlier messages is not evidence and cannot be approved. Don’t re-propose facts already listed above. Never present a proposal as verified.'
+    ...(propose ? ['', ...instructions] : [])
   ].join('\n');
 }
 

@@ -118,3 +118,10 @@ test('approved proposals export as an unsigned pack the shared verifier accepts,
   assert.match(new TextDecoder().decode(zip.get('HOW-TO-SIGN.txt')),/--sequence 3/);
   await assert.rejects(buildExport(pack,[{statement:'x',quote:'not in source',source}],{now:NOW}),/quote/);
 });
+test('an external agent sees only the memory sections its grants allow',async()=>{
+  const pack=await verifyPack(load('signed-a'),{pins:A,now:NOW});
+  const full=memoryPrompt({pack,query:'tomato'});assert.ok(full.includes('VERIFIED MEMORY')&&full.includes('PROPOSE MEMORY:'));
+  const recordsOnly=memoryPrompt({pack,query:'tomato',propose:false});assert.ok(recordsOnly.includes('VERIFIED MEMORY')&&!recordsOnly.includes('PROPOSE MEMORY:'));
+  const proposeOnly=memoryPrompt({pack,query:'tomato',records:false});assert.ok(!proposeOnly.includes('VERIFIED MEMORY')&&!proposeOnly.includes('M-garden-1')&&proposeOnly.includes('PROPOSE MEMORY:'));
+  assert.equal(memoryPrompt({pack,records:false,propose:false}),'');
+});
