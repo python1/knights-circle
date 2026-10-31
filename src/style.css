@@ -273,7 +273,13 @@ summary{cursor:pointer;min-height:32px;display:list-item}
 .vm-card textarea{width:100%;margin:8px 0;font-size:14px}
 .vm-card blockquote{margin:4px 0 8px;padding-left:10px;border-left:3px solid var(--line-strong);font-size:13px;color:var(--muted);overflow-wrap:anywhere}
 .vm-card .actions button{padding:8px 14px;font-size:12px}
-.agents-panel{margin:32px 0 0}
+.agents-panel{margin:32px 0 0;border-top:1px solid var(--line)}
+.agents-toggle{display:flex;align-items:center;gap:10px;min-height:44px;padding:12px 0;font-size:15px;font-weight:700;color:var(--text);cursor:pointer;list-style:none}
+.agents-toggle::-webkit-details-marker{display:none}
+.agents-toggle:before{content:'';width:8px;height:8px;border-right:2px solid var(--amber-text);border-bottom:2px solid var(--amber-text);transform:rotate(-45deg);transition:transform .15s;margin:0 4px}
+.agents-panel[open]>.agents-toggle:before{transform:rotate(45deg)}
+.agents-toggle .count{margin-left:0}
+.agents-panel[open]>.section-heading{margin-top:12px}
 .agents-body{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
 .agents-body>div{padding:20px;min-width:0}
 .agents-body h3{margin:0 0 6px;font-size:16px}
