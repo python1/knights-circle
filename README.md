@@ -35,6 +35,8 @@ Browsers differ here. From the https site, Safari (and every iOS browser, all We
 2. Rooms and orchestration: roles, shared transcript, interruption, four modes.
 3. Memory/cost controls: saved room history, search, reservation ledger, safety limits.
 4. Export/sharing/PWA: Markdown/PDF, read-only snapshots, installable offline shell.
+5. Verified Memory: signed packs checked in the browser, labelled proposals, export for offline signing (docs/verified-memory.md).
+6. External agents (Eureka): agents on this computer join rooms over a signed handshake, with per-member grants (docs/external-agents.md).
 
 Each phase must retain a working standalone checkout. Review target: python1/knights-circle, main. Never merge, deploy, publish, or release from this workflow.
 
