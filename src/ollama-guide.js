@@ -2,13 +2,19 @@
 export const platforms=[['mac-app','Mac (Ollama app)'],['mac-brew','Mac (Homebrew service)'],['windows','Windows'],['linux','Linux (systemd service)']];
 export function detectPlatform(nav=globalThis.navigator){const p=String(nav?.userAgentData?.platform||nav?.platform||nav?.userAgent||'');return /mac/i.test(p)?'mac-app':/win/i.test(p)?'windows':/linux|x11|cros/i.test(p)?'linux':'mac-app';}
 const again={text:'Then choose Fetch models again.'};
+const allow=origin=>({
+  'mac-app':[{text:'Allow this site. In Terminal, run:',command:`launchctl setenv OLLAMA_ORIGINS "${origin}"`}],
+  'mac-brew':[{text:'Allow this site. In Terminal, run:',command:`launchctl setenv OLLAMA_ORIGINS "${origin}"`}],
+  windows:[{text:'Allow this site. In PowerShell, run:',command:`setx OLLAMA_ORIGINS "${origin}"`}],
+  linux:[{text:'Allow this site. Open the service settings:',command:'sudo systemctl edit ollama.service'},{text:'Add these lines in the editor, then save and close it:',command:`[Service]\nEnvironment="OLLAMA_ORIGINS=${origin}"`},{text:'Reload the service settings:',command:'sudo systemctl daemon-reload'}],
+});
 export function ollamaGuide(problem,platform,origin){
-  if(problem==='offline')return {title:'Ollama isn’t running on this device',intro:'This page connects to Ollama on the same computer as this browser. A phone’s localhost is the phone, not your computer.',steps:[...{
+  if(problem==='offline')return {title:'Ollama isn’t running on this device',intro:'This page connects to Ollama on the same computer as this browser. A phone’s localhost is the phone, not your computer.',steps:[{text:'Not installed yet? Download it for your computer:',link:{href:'https://ollama.com/download',label:'ollama.com/download'}},...allow(origin)[platform],...{
     'mac-app':[{text:'Open Ollama from your Applications folder and wait for its menu-bar icon.'}],
     'mac-brew':[{text:'In Terminal, start the service:',command:'brew services start ollama'}],
     windows:[{text:'Start Ollama from the Start menu and wait for its taskbar icon.'}],
     linux:[{text:'In a terminal, start the service:',command:'sudo systemctl start ollama'}],
-  }[platform],again],notes:[]};
+  }[platform],{text:'Download a model to chat with, for example:',command:'ollama pull qwen3.5:4b'},again],notes:[`Allow this exact address: ${origin}. Already allow other sites? Put them all in one value, separated by commas.`,...(platform.startsWith('mac')?['launchctl setenv lasts until your Mac restarts. Run it again after a restart.']:[])]};
   return {title:'Ollama is running but refusing this site',intro:`Ollama only answers web pages it has been told to trust. Allow this exact address: ${origin}`,steps:[...{
     'mac-app':[{text:'In Terminal, run:',command:`launchctl setenv OLLAMA_ORIGINS "${origin}"`},{text:'Quit Ollama from its menu-bar icon, then open it again.'}],
     'mac-brew':[{text:'In Terminal, run:',command:`launchctl setenv OLLAMA_ORIGINS "${origin}"`},{text:'Restart the service:',command:'brew services restart ollama'}],
