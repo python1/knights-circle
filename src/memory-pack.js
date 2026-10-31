@@ -149,7 +149,7 @@ export function memoryPrompt({pack, proposals = [], query = ''}) {
     '',
     'To propose a new memory, end your reply with one line per proposal (at most 3), exactly like:',
     PROPOSAL_FORMAT,
-    'Only propose facts stated in this room’s messages, and copy the quote word for word. Never present a proposal as verified.'
+    'Only propose facts the user or another member stated in this room, quoting their words exactly. Quoting your own earlier messages is not evidence and cannot be approved. Don’t re-propose facts already listed above. Never present a proposal as verified.'
   ].join('\n');
 }
 
@@ -165,19 +165,58 @@ export function parseProposals(reply) {
 }
 
 /**
- * The earlier room message a proposal's quote comes from: the person's own messages first, then the objective, then
- * other models' replies (never the proposing reply itself). Returns a frozen copy of the source, or null.
+ * The earlier text a proposal's quote comes from, best source first: the person's own messages, the objective, other
+ * members' replies, a verified record's quote, and last the proposing member's own earlier replies (kind 'self', which
+ * cannot be approved: a model quoting itself is not evidence). Never the proposing reply itself. A frozen copy, or null.
  */
-export function findSource(room, quote, replyId) {
-  const before = room.messages.slice(0, Math.max(0, room.messages.findIndex(m => m.id === replyId)));
-  const first = room.messages[0]?.at || Date.now();
+export function findSource(room, quote, replyId, records = []) {
+  const at = room.messages.findIndex(m => m.id === replyId), before = room.messages.slice(0, Math.max(0, at));
+  const self = room.messages[at]?.memberId, first = room.messages[0]?.at || Date.now();
+  const agents = before.filter(m => m.memberId && m.status === 'complete' && m.text);
   const candidates = [
     ...before.filter(m => !m.memberId && m.status === 'complete').map(m => ({kind: 'user', id: m.id, speaker: 'You', text: m.text, at: m.at})),
     {kind: 'user', id: 'objective', speaker: 'You', text: room.objective, at: first},
-    ...before.filter(m => m.memberId && m.status === 'complete' && m.text).map(m => ({kind: 'agent', id: m.id, speaker: m.speaker, text: m.text, at: m.at}))
+    ...agents.filter(m => m.memberId !== self).map(m => ({kind: 'agent', id: m.id, memberId: m.memberId, speaker: m.speaker, text: m.text, at: m.at})),
+    ...[...records].flatMap(r => r.evidence.map(c => ({kind: 'record', role: r.role, id: r.record_id, speaker: r.speaker, text: c.quote, at: Date.parse(c.date_utc)}))),
+    ...agents.filter(m => m.memberId === self).map(m => ({kind: 'self', id: m.id, memberId: m.memberId, speaker: m.speaker, text: m.text, at: m.at}))
   ];
   const hit = candidates.find(c => c.text && c.text.includes(quote));
   return hit ? {...hit, start: [...hit.text.slice(0, hit.text.indexOf(quote))].length} : null;
+}
+
+/** Status for a new proposal: approvable only when quoted from someone other than the proposing model. */
+export const proposalStatus = source => !source ? 'unsupported' : source.kind === 'self' ? 'self-quoted' : 'pending';
+
+const sameFact = s => s.normalize('NFKC').toLowerCase().replace(/[“”"‘’'`*_]/g, '').replace(/[\s.!?;:,]+$/u, '').replace(/\s+/g, ' ').trim();
+const rank = p => ({pending: 2, approved: 2, signed: 2, rejected: 2, 'self-quoted': 1, unsupported: 0})[p.status] ?? 0;
+
+/**
+ * Adds a proposal unless the same fact (ignoring case, spacing, quote marks and end punctuation) is already listed; then
+ * the existing one records who else proposed it, and an unapprovable one takes the better-sourced quote. Returns true if added.
+ */
+export function addProposal(list, proposal) {
+  const dup = list.find(p => sameFact(p.statement) === sameFact(proposal.statement));
+  if (!dup) { list.push(proposal); return true; }
+  const by = new Set([dup.by, ...(dup.alsoBy || [])]);
+  if (!by.has(proposal.by)) dup.alsoBy = [...(dup.alsoBy || []), proposal.by];
+  if (rank(proposal) > rank(dup)) Object.assign(dup, {quote: proposal.quote, source: proposal.source, status: proposal.status, replyId: proposal.replyId});
+  return false;
+}
+
+/**
+ * Tidies proposals saved before self-quotes and duplicates were handled: a quote from a reply by the same speaker becomes
+ * a self-quote (unapprovable unless already signed), and duplicates merge into the first of each.
+ */
+export function mergeProposals(list) {
+  const out = [];
+  for (const p of list) {
+    if (p.source?.kind === 'agent' && !p.source.memberId && p.source.speaker === p.by) {
+      p.source = {...p.source, kind: 'self'};
+      if (p.status === 'pending' || p.status === 'approved') p.status = 'self-quoted';
+    }
+    addProposal(out, p);
+  }
+  return out;
 }
 
 const iso = ms => new Date(ms).toISOString();
@@ -197,9 +236,9 @@ export async function buildExport(pack, approved, {room = 'room', person = '', n
   let n = 0;
   for (const p of approved) {
     const s = p.source, key = `${s.id}\u0000${s.at}\u0000${s.text}`;
-    if (!messages.has(key)) messages.set(key, {id: nextMessage++, date: iso(s.at), speaker: s.kind === 'user' ? userName : s.speaker, text: s.text});
+    if (!messages.has(key)) messages.set(key, {id: nextMessage++, date: iso(s.at), speaker: (s.role || s.kind) === 'user' ? userName : s.speaker, text: s.text});
     let id; do id = `M-kc-${stamp}-${++n}`; while (pack.records.has(id));
-    rows.push({record_id: id, role: s.kind, topic: p.topic || `Room: ${room}`, category: 'knights-circle', statement: p.statement, quotes: [{message_id: messages.get(key).id, quote: p.quote, start: s.start}]});
+    rows.push({record_id: id, role: s.role || s.kind, topic: p.topic || `Room: ${room}`, category: 'knights-circle', statement: p.statement, quotes: [{message_id: messages.get(key).id, quote: p.quote, start: s.start}]});
   }
   const messagesBytes = utf8([...messages.values()].map(m => JSON.stringify(m)).join('\n') + '\n');
   const recordsBytes = utf8(rows.map(r => JSON.stringify(r)).join('\n') + '\n');
