@@ -1,0 +1,5 @@
+const CACHE='collaboration-shell-v1';
+const ASSETS=['/','/src/style.css','/src/app.js','/src/providers.js','/src/oauth.js','/src/rooms.js','/src/room-ui.js','/src/memory.js','/src/export.js','/src/markdown.js','/src/ollama-guide.js','/manifest.webmanifest','/icon.svg'];
+self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS))));
+self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key.startsWith('collaboration-shell-')&&key!==CACHE).map(key=>caches.delete(key))))));
+self.addEventListener('fetch',event=>{const url=new URL(event.request.url);if(event.request.method!=='GET'||url.origin!==self.location.origin||url.search||!ASSETS.includes(url.pathname))return;event.respondWith(fetch(event.request).catch(()=>caches.match(url.pathname).then(response=>response||Response.error())));});

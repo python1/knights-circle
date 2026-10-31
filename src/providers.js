@@ -70,17 +70,17 @@ export async function listModels(id,key,signal,fetcher=fetch){
 }
 export async function* records(body,ndjson=false){
   if(!body)throw new Error('Streaming is unavailable.');
-  const reader=body.getReader(),decoder=new TextDecoder();let buffer='';
+  const reader=body.getReader(),decoder=new TextDecoder();let buffer='',data=[];
+  function parseEvent(){const payload=data.join('\n');data=[];return payload==='[DONE]'?{__done:true}:JSON.parse(payload);}
   try{while(true){const {done,value}=await reader.read();buffer+=decoder.decode(value,{stream:!done});
-    if(buffer.length>2_000_000)throw new Error('Provider stream exceeded the safety limit.');
+    if(buffer.length+data.join('').length>2_000_000)throw new Error('Provider stream exceeded the safety limit.');
     let split;
-    while((split=buffer.indexOf('\n'))>=0){let line=buffer.slice(0,split).replace(/\r$/,'');buffer=buffer.slice(split+1);
-      if(!ndjson&&!line.startsWith('data:'))continue;
-      if(!ndjson)line=line.slice(5).trim();
-      if(!line||line==='[DONE]')continue;
-      yield JSON.parse(line);
+    while((split=buffer.indexOf('\n'))>=0){const line=buffer.slice(0,split).replace(/\r$/,'');buffer=buffer.slice(split+1);
+      if(ndjson){if(line.trim())yield JSON.parse(line);continue;}
+      if(!line){if(data.length)yield parseEvent();continue;}
+      if(line.startsWith('data:'))data.push(line.slice(5).replace(/^ /,''));
     }
-    if(done){if(ndjson&&buffer.trim())yield JSON.parse(buffer);break;}
+    if(done){if(ndjson&&buffer.trim())yield JSON.parse(buffer);else if(!ndjson){if(buffer.startsWith('data:'))data.push(buffer.slice(5).trim());if(data.length)yield parseEvent();}break;}
   }}finally{await reader.cancel().catch(()=>{});reader.releaseLock();}
 }
 async function ollamaThinks(p,model,signal,fetcher){
@@ -104,12 +104,15 @@ export async function* generate({provider:id,key,model,messages,system='',signal
   else {body[id==='openai'?'max_completion_tokens':'max_tokens']=maxTokens;body.stream_options={include_usage:true};if(id==='openrouter'){const reasoning=reasoningControl(info);if(reasoning)body.reasoning=reasoning;}}
   const free=!!info?.free&&id!=='ollama';let response,said=false;
   try{response=await request(p.base+path,{method:'POST',headers:p.headers,body:JSON.stringify(body),signal},fetcher);}catch(e){if(free&&e.status===429)throw Object.assign(new Error(FREE_BUSY),{status:429});throw e;}
+  let terminal=false;
   for await(const data of records(response.body,id==='ollama')){
+    if(data.__done||data.type==='message_stop'||data.done||data.choices?.some(c=>c.finish_reason)||data.candidates?.some(c=>c.finishReason))terminal=true;
     if(data.error||data.type==='error')throw new Error(free&&[data.error?.code,data.error?.status].includes(429)?FREE_BUSY:'The provider stopped this reply with an error. Try again or pick another model.');
     const text=id==='anthropic'?data.delta?.text:id==='google'?data.candidates?.[0]?.content?.parts?.filter(p=>!p.thought).map(p=>p.text||'').join(''):id==='ollama'?data.message?.content:data.choices?.[0]?.delta?.content;
     const usage=id==='google'?data.usageMetadata:id==='ollama'&&data.done?{input_tokens:data.prompt_eval_count,output_tokens:data.eval_count}:data.usage||data.message?.usage;
     const reasoning=id==='ollama'?data.message?.thinking:id==='openrouter'?data.choices?.[0]?.delta?.reasoning:undefined;
-    if(reasoning||text)said=true;if(reasoning)yield {reasoning};if(text)yield {text};if(usage)yield {usage};
+    if(reasoning||text)said=true;if(reasoning)yield {reasoning};if(text)yield {text};if(usage&&Object.values(usage).some(v=>v!==undefined))yield {usage};
   }
   if(free&&!said)throw new Error(FREE_BUSY);
+  if(!terminal)throw new Error('The provider stream ended unexpectedly. Partial output may have been billed.');
 }
