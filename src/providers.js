@@ -19,8 +19,13 @@ export async function request(url,init,fetcher=fetch){
   let response;
   try{response=await fetcher(url,{...init,redirect:'error',credentials:'omit',referrerPolicy:'no-referrer'});}catch(e){if(e.name==='AbortError')throw e;throw new Error('Connection failed. Check network access, provider browser support, and local permissions.');}
   // Never surface provider error bodies: they may contain credentials or prompt data.
-  if(!response.ok)throw new Error(`Provider returned HTTP ${response.status}. Check your key, account access, and quota.`);
+  if(!response.ok)throw Object.assign(new Error(`Provider returned HTTP ${response.status}. Check your key, account access, and quota.`),{status:response.status});
   return response;
+}
+// A refused origin and a stopped server both look like network errors to the page. A no-cors request still
+// completes (with an unreadable response) while Ollama is running, which tells the two apart.
+export async function probeOllama(fetcher=fetch){
+  try{await fetcher(providers.find(p=>p.id==='ollama').base+'/api/version',{mode:'no-cors',credentials:'omit',referrerPolicy:'no-referrer',signal:AbortSignal.timeout(5000)});return 'refused';}catch{return 'offline';}
 }
 export async function listModels(id,key,signal,fetcher=fetch){
   const p=config(id,key);const result=[];let next='';
