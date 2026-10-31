@@ -27,6 +27,9 @@ export async function request(url,init,fetcher=fetch){
 export async function probeOllama(fetcher=fetch){
   try{await fetcher(providers.find(p=>p.id==='ollama').base+'/api/version',{mode:'no-cors',credentials:'omit',referrerPolicy:'no-referrer',signal:AbortSignal.timeout(5000)});return 'refused';}catch{return 'offline';}
 }
+// $0 only when every listed price is exactly zero and there are no conditional price overrides; routers' negative
+// "variable" prices and anything unparseable count as paid.
+export function freePricing(pricing){return !!pricing&&typeof pricing==='object'&&'prompt' in pricing&&'completion' in pricing&&Object.values(pricing).every(v=>Array.isArray(v)?v.length===0:(typeof v==='string'||typeof v==='number')&&String(v).trim()!==''&&Number(v)===0);}
 export async function listModels(id,key,signal,fetcher=fetch){
   const p=config(id,key);const result=[];let next='';
   for(let page=0;page<20;page++){
@@ -35,7 +38,7 @@ export async function listModels(id,key,signal,fetcher=fetch){
     const data=await(await request(url.href,{headers:p.headers,signal},fetcher)).json();
     const rows=id==='ollama'?data.models:id==='google'?data.models:data.data;
     if(!Array.isArray(rows))throw new Error('Provider returned an unsupported model catalog.');
-    result.push(...rows.filter(m=>id!=='google'||m.supportedGenerationMethods?.includes('generateContent')).map(m=>({id:id==='ollama'?m.name:id==='google'?m.name.replace(/^models\//,''):m.id,name:m.displayName||m.name||m.id,...(id==='openrouter'&&m.supported_parameters?.includes('reasoning')?{reasoning:m.reasoning||{}}:{})})));
+    result.push(...rows.filter(m=>id!=='google'||m.supportedGenerationMethods?.includes('generateContent')).map(m=>({id:id==='ollama'?m.name:id==='google'?m.name.replace(/^models\//,''):m.id,name:m.displayName||m.name||m.id,free:id==='ollama'||(id==='openrouter'&&freePricing(m.pricing)),...(id==='openrouter'&&m.supported_parameters?.includes('reasoning')?{reasoning:m.reasoning||{}}:{})})));
     next=id==='anthropic'&&data.has_more?data.last_id:data.nextPageToken;
     if(!next)break;
     if(page===19)throw new Error('Model catalog pagination limit reached.');
