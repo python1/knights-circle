@@ -1,6 +1,7 @@
 import {showShared} from './export.js';
 import {mountRooms} from './room-ui.js';
 import {mountAgents} from './agents-ui.js';
+import {loadAgents} from './agents.js';
 import {providers,listModels,generate,probeOllama,modelLabel,pickDefault} from './providers.js';
 import {ollamaGuide,platforms,detectPlatform,detectBrowser,localNetworkPermission} from './ollama-guide.js';
 import {renderMarkdown} from './markdown.js';
@@ -16,7 +17,19 @@ const workingKey='collaboration.working-models.v1';
 try{for(const [provider,model] of Object.entries(JSON.parse(localStorage.getItem(workingKey))||{}))if(typeof model==='string')working.set(provider,model);}catch{}
 function rememberWorking(provider,model){working.set(provider,model);try{localStorage.setItem(workingKey,JSON.stringify(Object.fromEntries(working)));}catch{}}
 function ollamaRemembered(){try{return JSON.parse(localStorage.getItem(connectionsKey))?.ollama===true;}catch{return false;}}
+// Sidebar status: only what this tab actually knows (connected catalogs, the agent allowlist, the room's memory pack).
+let memoryState={state:'off'};
+function renderStatus(){
+  const rows=[...catalogs].map(([id,models])=>['ok',`${providers.find(p=>p.id===id)?.name||id}${id==='ollama'?' · local':''} · ${models.length} model${models.length===1?'':'s'}`]);
+  if(!rows.length)rows.push(['off','No providers connected']);
+  const agents=loadAgents().length;if(agents)rows.push(['agent',`${agents} external agent${agents===1?'':'s'} allowlisted`]);
+  rows.push(memoryState.state==='on'?['memory',`Verified memory · on · ${memoryState.records} records`]:memoryState.state==='missing'?['warn','Verified memory · needs its pack']:['off','Verified memory · off']);
+  $('#side-status').replaceChildren(...rows.map(([kind,text])=>{const li=document.createElement('li');li.className=`status-${kind}`;li.textContent=text;return li;}));
+}
+document.addEventListener('agents-changed',renderStatus);
+document.addEventListener('vm-changed',e=>{memoryState=e.detail;renderStatus();});
 function render(){
+  renderStatus();
   $('#count').textContent=String(catalogs.size);$('#count-help').textContent=catalogs.size?`${catalogs.size} provider${catalogs.size===1?'':'s'} connected`:'No providers connected yet';$('#count').setAttribute('aria-label',$('#count-help').textContent);$('#providers').replaceChildren();
   for(const p of providers){const card=document.createElement('article');card.className='provider-card';
     const top=document.createElement('div');top.className='card-top';
