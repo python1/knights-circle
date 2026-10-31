@@ -21,7 +21,7 @@ The development server binds only to loopback. It is not production hosting. Kee
 
 API keys live only in a JavaScript Map in the current browser tab. They are never stored in localStorage, IndexedDB, cookies, or on the application server. Closing/reloading the page removes app access to the keys. JavaScript cannot promise secure erasure from process memory. The temporary OAuth PKCE verifier/state uses sessionStorage and is consumed on callback; it is not a provider API key. OAuth uses SHA-256 PKCE, random state, and a ten-minute local expiry.
 
-Inference and catalog requests go directly to fixed provider origins, with keys in headers, no cookies, and redirects rejected. There is no telemetry, remote font, CDN script, or request logging. Provider response error bodies are not displayed or logged. Browser developer tools and extensions may still observe requests. Any script compromise of the app origin can expose in-memory keys. Users must supply their own credentials; never embed a developer/shared key.
+Inference and catalog requests go directly to fixed provider origins, with keys in headers, no cookies, and redirects rejected. There is no telemetry, remote font, CDN script, or request logging; the two fonts are served from this site. Provider response error bodies are not displayed or logged. Browser developer tools and extensions may still observe requests. Any script compromise of the app origin can expose in-memory keys. Users must supply their own credentials; never embed a developer/shared key.
 
 This client-side BYOK design requires security review before public release. OpenAI recommends keeping secrets on servers. A relay would receive the user's credential, conflicting with the strict requirement that it only be sent to the provider; no relay is implemented.
 
@@ -42,7 +42,7 @@ Each phase must retain a working standalone checkout. Review target: python1/kni
 
 ## License credits
 
-No third-party runtime packages, copied assets, fonts, or SDK source are included. Provider names appear only to identify integrations and do not form the product name. License/NOTICE files of any future dependencies must be retained. This repository has no distribution license selected yet; Paul must choose one before release.
+No third-party runtime packages, copied assets, or SDK source are included, except two fonts self-hosted in `fonts/`: Plus Jakarta Sans (The Plus Jakarta Sans Project Authors) and JetBrains Mono (The JetBrains Mono Project Authors), both under the SIL Open Font License 1.1 (`fonts/OFL-*.txt`), latin subsets taken from the @fontsource-variable 5.3.0 packages. They load only from this site (`font-src 'self'`). Provider names appear only to identify integrations and do not form the product name. License/NOTICE files of any future dependencies must be retained. This repository has no distribution license selected yet; Paul must choose one before release.
 
 ## Official integration references
 
