@@ -33,6 +33,21 @@ export async function probeOllama(fetcher=fetch){
 // $0 only when every listed price is exactly zero and there are no conditional price overrides; routers' negative
 // "variable" prices and anything unparseable count as paid.
 export function freePricing(pricing){return !!pricing&&typeof pricing==='object'&&'prompt' in pricing&&'completion' in pricing&&Object.values(pricing).every(v=>Array.isArray(v)?v.length===0:(typeof v==='string'||typeof v==='number')&&String(v).trim()!==''&&Number(v)===0);}
+// Models the app cannot hold a text conversation with: embeddings, speech, images, classifiers. Catalog data wins where a provider has it.
+const nonChat=/embed|rerank|moderation|content-safety|guard|tts|whisper|transcri|speech|dall-e|image|imagine|imagen|veo|sora|lyria|realtime|^davinci|^babbage/i;
+function chatModel(id,m){
+  if(id==='openrouter'){const a=m.architecture||{};return (a.output_modalities||['text']).every(x=>x==='text')&&(a.input_modalities||['text']).includes('text')&&!/content-safety|guard|moderation|embed|rerank/i.test(m.id);}
+  return id==='anthropic'||!nonChat.test(m.id||m.name||'');
+}
+export function modelLabel(m){return m.id+(m.free?' · free':'')+(m.chat===false?' · not a chat model':'');}
+// Confirmed answering with visible text through this app (live check, 2026-10-30).
+const verifiedFree=['nvidia/nemotron-3.5-super-vl:free'];
+// Default pick: a model that already answered here, then a verified free chat model, then a free chat model that can answer without mandatory reasoning.
+export function pickDefault(models,preferred=[]){
+  return [...preferred,...verifiedFree].map(id=>models.find(m=>m.id===id&&m.chat!==false)).find(Boolean)
+    ||models.find(m=>m.free&&m.chat!==false&&m.reasoning?.mandatory!==true&&m.id!=='openrouter/free')
+    ||models.find(m=>m.free&&m.chat!==false)||models.find(m=>m.chat!==false)||models[0];
+}
 export async function listModels(id,key,signal,fetcher=fetch){
   const p=config(id,key);const result=[];let next='';
   for(let page=0;page<20;page++){
@@ -41,11 +56,16 @@ export async function listModels(id,key,signal,fetcher=fetch){
     const data=await(await request(url.href,{headers:p.headers,signal},fetcher)).json();
     const rows=id==='ollama'?data.models:id==='google'?data.models:data.data;
     if(!Array.isArray(rows))throw new Error('Provider returned an unsupported model catalog.');
-    result.push(...rows.filter(m=>id!=='google'||m.supportedGenerationMethods?.includes('generateContent')).map(m=>({id:id==='ollama'?m.name:id==='google'?m.name.replace(/^models\//,''):m.id,name:m.displayName||m.name||m.id,free:id==='ollama'||(id==='openrouter'&&freePricing(m.pricing)),...(id==='openrouter'&&m.supported_parameters?.includes('reasoning')?{reasoning:m.reasoning||{}}:{})})));
+    result.push(...rows.filter(m=>id!=='google'||m.supportedGenerationMethods?.includes('generateContent')).map(m=>({id:id==='ollama'?m.name:id==='google'?m.name.replace(/^models\//,''):m.id,name:m.displayName||m.name||m.id,free:id==='ollama'||(id==='openrouter'&&freePricing(m.pricing)),chat:id==='ollama'||chatModel(id,m),...(id==='openrouter'&&m.supported_parameters?.includes('reasoning')?{reasoning:m.reasoning||{}}:{})})));
     next=id==='anthropic'&&data.has_more?data.last_id:data.nextPageToken;
     if(!next)break;
     if(page===19)throw new Error('Model catalog pagination limit reached.');
   }
+  if(id==='ollama')await Promise.all(result.map(async m=>{
+    // Embedding-only Ollama models lack the completion capability; unknown (older servers) counts as chat.
+    try{const caps=(await(await request(p.base+'/api/show',{method:'POST',headers:p.headers,body:JSON.stringify({model:m.id}),signal},fetcher)).json()).capabilities;if(Array.isArray(caps))m.chat=caps.includes('completion');}
+    catch(e){if(e.name==='AbortError'||e.name==='TimeoutError')throw e;}
+  }));
   return result.sort((a,b)=>a.id.localeCompare(b.id));
 }
 export async function* records(body,ndjson=false){
