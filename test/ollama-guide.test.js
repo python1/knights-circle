@@ -17,7 +17,7 @@ test('offline guide explains how to start Ollama on each platform',()=>{
   assert.match(ollamaGuide('offline','windows',origin).steps[0].text,/Start menu/);
 });
 test('platform detection falls back to Mac',()=>{
-  assert.equal(detectPlatform({userAgentData:{platform:'Windows'}}),'windows');assert.equal(detectPlatform({platform:'MacIntel'}),'mac-app');assert.equal(detectPlatform({platform:'Linux x86_64'}),'linux');assert.equal(detectPlatform(undefined),'mac-app');
+  assert.equal(detectPlatform({userAgentData:{platform:'Windows'}}),'windows');assert.equal(detectPlatform({platform:'MacIntel'}),'mac-app');assert.equal(detectPlatform({platform:'Linux x86_64'}),'linux');assert.equal(detectPlatform({}),'mac-app');
 });
 test('probe tells a refusing server from a stopped one',async()=>{
   assert.equal(await probeOllama(async(url,init)=>{assert.equal(init.mode,'no-cors');assert.ok(url.endsWith('/api/version'));return new Response(null,{status:200});}),'refused');

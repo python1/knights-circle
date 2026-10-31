@@ -1,6 +1,6 @@
 # Phase 1 — foundation and providers
 
-Status: draft review candidate for python1/knights-circle, base main. No deployment, merge, or release performed. Live verification awaits Paul’s Vercel preview.
+Status: local implementation; PR not opened. Repository URL missing; GitHub CLI login reports invalid credentials. Not approved for release.
 
 ## What it does
 
@@ -35,4 +35,6 @@ Responsive provider workbench with six provider adapters, live model discovery, 
 - In-memory credentials reduce persistence risk but remain exposed to compromised origin scripts/extensions. Read README security notes.
 - Name suggestions: “Manyfold Table”, “Council Weave”, “Roundloom”. These are brainstorming candidates, **not trademark-cleared names**. No claim of trademark freedom is made. Keep generic workspace branding until clearance.
 
-Product update: Paul selected **Knights Circle**. Earlier brainstorming names are superseded. No trademark-clearance claim is made. Vercel configuration and CI were prepared, not deployed; GitHub-hosted CI has not yet been observed.
+## Review submission update
+
+Product name: **Knights Circle**, selected by Paul; earlier name candidates are superseded. Trademark clearance remains unverified. Target repository: python1/knights-circle, base main. Draft phase snapshots are cumulative and overlap; review/merge in phase order and rebase later PRs after earlier merges. Local test evidence above is separate from GitHub CI and Vercel live verification. Paul controls deployment; no live provider acceptance has been claimed.

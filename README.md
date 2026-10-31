@@ -34,7 +34,7 @@ Ollama targets only http://127.0.0.1:11434, requires an installed/running local 
 3. Memory/cost controls: saved room history, search, reservation ledger, safety limits.
 4. Export/sharing/PWA: Markdown/PDF, read-only snapshots, installable offline shell.
 
-Each phase must retain a working standalone checkout. PRs await repository selection and valid GitHub authentication. Never merge, deploy, publish, or release from this workflow.
+Each phase must retain a working standalone checkout. Review target: python1/knights-circle, main. Never merge, deploy, publish, or release from this workflow.
 
 ## License credits
 
@@ -51,6 +51,6 @@ No third-party runtime packages, copied assets, fonts, or SDK source are include
 - https://docs.ollama.com/api/chat
 - https://docs.ollama.com/faq
 
-## Vercel preview preparation
+## Preview hosting
 
-Paul connects this repository to Vercel. `npm run build` produces only allowlisted public assets in `dist/`; `vercel.json` supplies security headers. No deployment action is performed by this workflow. Live acceptance testing waits for Paul’s preview URL.
+Paul connects the repository to Vercel. `npm run build` copies only allowlisted app assets to `dist/`. Security headers are defined in `vercel.json`. Live testing awaits Paul’s preview URLs. No deployment is performed by this workflow.
