@@ -37,7 +37,7 @@ function render(){
     const badge=document.createElement('span');badge.className='connection-state';badge.textContent=tested.has(p.id)?'Test passed':catalogs.has(p.id)?'Models fetched':'Not connected';
     top.append(icon,badge);const title=document.createElement('h3');title.textContent=p.name;
     const description=document.createElement('p');description.textContent=p.description;
-    const button=document.createElement('button');button.className='connect-button';button.textContent=catalogs.has(p.id)?'Manage connection ↗':'Connect provider +';button.setAttribute('aria-label',`${catalogs.has(p.id)?'Manage':'Connect'} ${p.name}`);button.onclick=()=>open(p.id);
+    const button=document.createElement('button');button.className=catalogs.has(p.id)?'connect-button':'connect-button primary';button.textContent=catalogs.has(p.id)?'Manage connection ↗':'Connect provider +';button.setAttribute('aria-label',`${catalogs.has(p.id)?'Manage':'Connect'} ${p.name}`);button.onclick=()=>open(p.id);
     card.append(top,title,description,button);$('#providers').append(card);
   }
 }
