@@ -27,9 +27,9 @@ nav a:hover,nav button:hover{background:var(--surface)}
 nav .active,nav a.active{background:var(--raise);border-left-color:var(--amber)}
 .active{background:var(--raise)}
 .count{margin-left:auto;font:600 11px var(--mono);color:var(--amber-text);padding:2px 6px}
-.side-status,.roadmap{margin-top:26px;padding-top:20px;border-top:1px solid var(--line);font-size:13px;color:var(--text)}
+.side-status{margin-top:26px;padding-top:20px;border-top:1px solid var(--line);font-size:13px;color:var(--text)}
 .eyebrow{font:600 10px var(--mono);letter-spacing:1.8px;color:var(--amber-text);text-transform:uppercase}
-.side-status .eyebrow,.roadmap .eyebrow{color:var(--muted)}
+.side-status .eyebrow{color:var(--muted)}
 .side-status ul{list-style:none;margin:12px 0 0;padding:0}
 .side-status li{position:relative;padding:5px 0 5px 16px;line-height:1.4}
 .side-status li:before{content:'';position:absolute;left:0;top:11px;width:7px;height:7px;border-radius:50%;background:#64748b}
@@ -37,13 +37,12 @@ nav .active,nav a.active{background:var(--raise);border-left-color:var(--amber)}
 .side-status .status-agent:before{background:var(--blue)}
 .side-status .status-memory:before,.side-status .status-warn:before{background:var(--amber)}
 .side-status .status-off{color:var(--muted)}
-.roadmap ol{list-style:none;padding:0;margin:12px 0 0;line-height:1.4}
-.roadmap li{display:flex;justify-content:space-between;gap:8px;padding:5px 0}
-.roadmap small{font:600 10px var(--mono);letter-spacing:.8px;color:var(--green);padding-top:2px}
-.roadmap .next small{color:var(--muted)}
-.roadmap .current{color:var(--amber-text);font-weight:700}
 footer{margin-top:auto;padding-top:24px;font-size:11px;line-height:1.9;color:var(--muted)}
 footer span{color:var(--muted)}
+.credit-links{display:block}
+.credit-links a{color:var(--muted);text-underline-offset:2px}
+.credit-links a:hover{color:var(--text)}
+.public-credit .credit-links{display:none}
 .shell{margin-left:242px}
 header{height:64px;border-bottom:1px solid var(--line);padding:0 48px;display:flex;align-items:center;justify-content:space-between;font:600 11px var(--mono);letter-spacing:1.2px;text-transform:uppercase;color:var(--amber-text);background:rgba(10,15,28,.6)}
 .divider{margin:0 10px;color:var(--muted)}
@@ -157,7 +156,7 @@ summary{cursor:pointer;min-height:32px;display:list-item}
 [hidden]{display:none!important}
 @media(min-width:1450px){main{padding-top:56px}}
 @media(max-width:1100px){.sidebar{width:210px;padding:24px 14px}.shell{margin-left:210px}header{padding:0 30px}main{padding:32px}.orbit{margin-right:10px;transform:scale(.85)}.provider-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.brand{font-size:12px}}
-@media(max-width:700px){.sidebar{position:static;width:auto;padding:14px 16px;border-right:0;border-bottom:1px solid var(--line);overflow:visible}.brand{font-size:13px}.workspace-label,nav,.side-status,.roadmap,.sidebar footer{display:none}.shell{margin:0}header{height:55px;padding:0 16px;font-size:10px}.local-badge{font-size:10px}main{padding:24px 16px}.page-heading{min-height:0;margin-bottom:22px}.orbit{display:none}h1{font-size:38px}.security-note{padding:16px;gap:10px}.section-heading .subtle{display:none}.provider-grid{grid-template-columns:minmax(0,1fr);gap:12px}.provider-card{padding:18px}.card-top{display:flex}.provider-card h3{margin-top:14px}.next-step{align-items:start;gap:12px}.pill{display:none}.next-step h3{line-height:1.5}dialog{padding:20px}}
+@media(max-width:700px){.sidebar{position:static;width:auto;padding:14px 16px;border-right:0;border-bottom:1px solid var(--line);overflow:visible}.brand{font-size:13px}.workspace-label,nav,.side-status,.sidebar footer{display:none}.public-credit .credit-links{display:block}.shell{margin:0}header{height:55px;padding:0 16px;font-size:10px}.local-badge{font-size:10px}main{padding:24px 16px}.page-heading{min-height:0;margin-bottom:22px}.orbit{display:none}h1{font-size:38px}.security-note{padding:16px;gap:10px}.section-heading .subtle{display:none}.provider-grid{grid-template-columns:minmax(0,1fr);gap:12px}.provider-card{padding:18px}.card-top{display:flex}.provider-card h3{margin-top:14px}.next-step{align-items:start;gap:12px}.pill{display:none}.next-step h3{line-height:1.5}dialog{padding:20px}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 .view-tabs{display:flex;gap:8px;margin-bottom:24px}
 .view-tabs button{font-size:13px}

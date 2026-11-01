@@ -1,0 +1,16 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';
+const html=readFileSync(new URL('../index.html',import.meta.url),'utf8'),css=readFileSync(new URL('../src/style.css',import.meta.url),'utf8');
+const sidebar=html.slice(html.indexOf('<aside class="sidebar"'),html.indexOf('</aside>')),credit=html.match(/<p class="public-credit">.*?<\/p>/)[0];
+const links=part=>[...part.matchAll(/<a href="([^"]+)"([^>]*)>([^<]+)<\/a>/g)].map(([,href,attrs,text])=>({href,attrs,text}));
+test('the sidebar has no build list, only the credit with Source and License links',()=>{
+  assert.doesNotMatch(sidebar,/roadmap|BUILD|LIVE|NEXT|Second machine/);assert.doesNotMatch(css,/\.roadmap/);
+  for(const part of [sidebar,credit]){assert.match(part,/Created by Paul Charydczak/);
+    const found=links(part).filter(l=>l.href.startsWith('https://github.com/'));
+    assert.deepEqual(found.map(({href,text})=>({href,text})),[{href:'https://github.com/python1/knights-circle',text:'Source'},{href:'https://github.com/python1/knights-circle/blob/main/LICENSE',text:'License: AGPL-3.0'}]);
+    for(const l of found)assert.match(l.attrs,/target="_blank" rel="noopener noreferrer"/);}
+});
+test('the links show once at each width: sidebar on desktop, page credit on phones',()=>{
+  assert.match(css,/\.public-credit \.credit-links\{display:none\}/);
+  const phone=css.slice(css.indexOf('@media(max-width:700px)'));
+  assert.match(phone.slice(0,phone.indexOf('}}')),/\.sidebar footer\{display:none\}\.public-credit \.credit-links\{display:block\}/);
+});
