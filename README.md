@@ -2,6 +2,8 @@
 
 Created by Paul Charydczak.
 
+Try it: https://knights-circle.vercel.app
+
 A shared room where several AI models, each with its own role, work on one objective together. It runs in your browser with your own provider keys or a local Ollama, and nothing is sent to a Knights Circle server.
 
 ## Run locally
