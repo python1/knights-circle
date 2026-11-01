@@ -5,6 +5,7 @@ import {loadAgents} from './agents.js';
 import {providers,listModels,generate,probeOllama,modelLabel,pickDefault} from './providers.js';
 import {ollamaGuide,platforms,detectPlatform,detectBrowser,localNetworkPermission} from './ollama-guide.js';
 import {renderMarkdown} from './markdown.js';
+import {openModal} from './dialog.js';
 import {count as plural} from './format.js';
 import {beginOAuth,finishOAuth} from './oauth.js';
 const $=s=>document.querySelector(s),keys=new Map(),catalogs=new Map(),tested=new Set(),working=new Map();
@@ -56,7 +57,7 @@ $('#api-key').oninput=keyLink;
 function limit(){$('#run-test').textContent=`Send test · up to ${$('#max-tokens').value||0} output tokens`;}
 // Errors in the connection panel read as errors, not in the success colour.
 const tone=(error=false)=>$('#connection-status').classList.toggle('is-error',error);
-function open(id){if(controller)return;selected=id;$('#dialog-title').textContent=providers.find(p=>p.id===id).name;$('#api-key').value='';$('#api-key').placeholder=keys.has(id)?'Key held in memory; paste to replace':'Paste your own API key';$('#api-key').hidden=$('#key-label').hidden=id==='ollama';$('#local-help').hidden=id!=='ollama';showGuide(null);$('#oauth').hidden=$('#oauth-note').hidden=id!=='openrouter';tone();$('#connection-status').textContent='';$('#test-output').textContent='';$('#reasoning-output').textContent='';$('#test-reasoning').hidden=true;$('#test-reasoning').open=false;$('#usage').textContent='';$('#charges-note').hidden=$('#key-note').hidden=id==='ollama';$('#local-note').hidden=id!=='ollama';keyLink();connectedState();$('#max-tokens').value=id==='ollama'?2048:256;limit();populate();dialog.showModal();}
+function open(id){if(controller)return;selected=id;$('#dialog-title').textContent=providers.find(p=>p.id===id).name;$('#api-key').value='';$('#api-key').placeholder=keys.has(id)?'Key held in memory; paste to replace':'Paste your own API key';$('#api-key').hidden=$('#key-label').hidden=id==='ollama';$('#local-help').hidden=id!=='ollama';showGuide(null);$('#oauth').hidden=$('#oauth-note').hidden=id!=='openrouter';tone();$('#connection-status').textContent='';$('#test-output').textContent='';$('#reasoning-output').textContent='';$('#test-reasoning').hidden=true;$('#test-reasoning').open=false;$('#usage').textContent='';$('#charges-note').hidden=$('#key-note').hidden=id==='ollama';$('#local-note').hidden=id!=='ollama';keyLink();connectedState();$('#max-tokens').value=id==='ollama'?2048:256;limit();populate();openModal(dialog,{cancelValue:'',fallback:()=>$('#providers button')});}
 function busy(value){$('#verify').disabled=value;$('#run-test').disabled=value;$('#oauth').disabled=value;connectedState();$('#api-key').disabled=value;$('#model').disabled=value;$('#free-only').disabled=value;$('#max-tokens').disabled=value;$('#stop-test').disabled=!value;}
 function stop(){controller?.abort();}
 $('#max-tokens').oninput=limit;

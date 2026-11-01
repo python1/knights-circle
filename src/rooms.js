@@ -44,3 +44,12 @@ export class RoomRunner{
  }if(this.room.status==='running'){this.room.status='complete';this.room.notice='Turn cap reached. Choose Continue… to add more turns.';}
  }catch(e){this.room.status='paused';this.room.notice=e.message;}finally{this.active=false;this.emit();}}
 }
+// Why a room can't start yet, or null when it can: it needs a team, and every member's provider connected (an external agent must still be allowed).
+export function startBlocker(room,{connected,agentAllowed,providerName=id=>id}){
+ const list=xs=>xs.length<3?xs.join(' and '):`${xs.slice(0,-1).join(', ')} and ${xs.at(-1)}`;
+ if(!room.members.length)return connected.size?{fix:'member',text:'Add a member to the team to start.'}:{fix:'connections',text:'No models connected yet. Connect a provider, then add a member.'};
+ const agents=room.members.filter(m=>m.provider==='eureka'&&!agentAllowed(m.model)),models=room.members.filter(m=>m.provider!=='eureka'&&!connected.has(m.provider));
+ if(models.length){const names=[...new Set(models.map(m=>providerName(m.provider)))];return {fix:'connections',text:`Connect ${list(names)} to start (needed by ${list(models.map(m=>m.role))}).`};}
+ if(agents.length)return {fix:'connections',text:`${list(agents.map(m=>m.role))} ${agents.length===1?'is an external agent that is':'are external agents that are'} no longer allowed. Allow ${agents.length===1?'it':'them'} again to start.`};
+ return null;
+}
