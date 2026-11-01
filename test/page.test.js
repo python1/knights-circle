@@ -44,3 +44,24 @@ test('rounded chat look: messages, text fields and saved-room pills are rounded;
   assert.match(css,/^button\{[^}]*clip-path:polygon/m);assert.match(css,/\.room-config,\.conversation,\.round-table,\.saved-toolbar[^{]*\{[^}]*clip-path:polygon/);
   assert.doesNotMatch(block,/(^|\})button\{|\.conversation\{|\.room-config\{|dialog\{/);
 });
+test('warm room: each member has one readable colour on seat and avatar, the speaker glows, and motion is gentle and optional',()=>{
+  const ui=readFileSync(new URL('../src/room-ui.js',import.meta.url),'utf8'),warm=css.slice(css.indexOf('/* Warm room'));
+  const tones=[...ui.match(/const modelTones=(\[[^\]]+\]),agentTones=(\[[^\]]+\])/).slice(1)].flatMap(list=>JSON.parse(list.replace(/'/g,'"')));
+  assert.ok(tones.length>=8&&new Set(tones).size===tones.length);assert.ok(!tones.includes('#34d399'),'green stays yours');
+  // The same toneFor() colours the seat and the message, so a member reads the same in both places.
+  assert.match(ui,/seat\.style\.setProperty\('--tone',toneFor\(m\)\)/);assert.match(ui,/article\.classList\.add\('has-tone'\);article\.style\.setProperty\('--tone',toneFor\(member\)\)/);
+  const rgb=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16)),lum=c=>{const [r,g,b]=c.map(x=>{x/=255;return x<=.03928?x/12.92:((x+.055)/1.055)**2.4});return .2126*r+.7152*g+.0722*b},ratio=(a,b)=>{const [x,y]=[lum(a),lum(b)];return (Math.max(x,y)+.05)/(Math.min(x,y)+.05)};
+  const panel=rgb('#0f1729'),surface=rgb('#131c31'),ink=rgb('#0b1020'),mix=(t,p)=>t.map((v,i)=>v*.12+p[i]*.88);
+  for(const tone of tones){const t=rgb(tone);assert.ok(ratio(t,mix(t,panel))>=4.5,`${tone} on its tinted chip`);assert.ok(ratio(ink,t)>=4.5,`speaking ink on ${tone}`);assert.ok(ratio(t,surface)>=4.5,`${tone} speaking name`);}
+  assert.match(warm,/\.seat-model \.seat-chip,\.seat-agent \.seat-chip,\.message\.has-tone:before\{border-color:var\(--tone\);color:var\(--tone\);background:color-mix\(in srgb,var\(--tone\) 12%,var\(--panel\)\)\}/);
+  assert.match(warm,/\.seat\.speaking \.seat-chip,\.message\.has-tone\.is-speaking:before\{background:var\(--tone\)/);assert.match(warm,/\.message\.has-tone\.is-speaking\{border-color:var\(--tone\)/);
+  // Only opacity and transform animate (cheap), and reduced motion stops them; the global rule does not reach pseudo-elements.
+  for(const [,frames] of warm.matchAll(/@keyframes [\w-]+\{((?:[^{}]*\{[^}]*\})+)\}/g))assert.doesNotMatch(frames.replace(/(opacity|transform):[^;}]+;?/g,''),/:/);
+  assert.match(warm,/@media\(prefers-reduced-motion:reduce\)\{\.round-table:has\(\.table-live\.live\):before,\.seat\.speaking:before\{animation:none\}\}/);
+  // The first members of a team are clearly distinct: neighbouring tones in each list are far apart in perceived colour (CIE Lab distance; amber and coral were only 28).
+  const lab=h=>{const [r,g,b]=rgb(h).map(x=>{x/=255;return x<=.04045?x/12.92:((x+.055)/1.055)**2.4}),f=v=>v>.008856?Math.cbrt(v):7.787*v+16/116,[x,y,z]=[(r*.4124+g*.3576+b*.1805)/.95047,r*.2126+g*.7152+b*.0722,(r*.0193+g*.1192+b*.9505)/1.08883].map(f);return [116*y-16,500*(x-y),200*(y-z)];};
+  for(const list of ui.match(/const modelTones=(\[[^\]]+\]),agentTones=(\[[^\]]+\])/).slice(1).map(l=>JSON.parse(l.replace(/'/g,'"'))))for(let i=1;i<list.length;i++){const [a,b]=[lab(list[i-1]),lab(list[i])];assert.ok(Math.hypot(a[0]-b[0],a[1]-b[1],a[2]-b[2])>=35,`${list[i-1]} and ${list[i]} look alike`);}
+  // Seats keep their cut corners from main.
+  assert.match(css,/^\.seat-chip\{[^}]*clip-path:polygon/m);assert.doesNotMatch(css,/\.seat-chip\{clip-path:none/);
+  assert.match(ui,/<div class="empty-room"><span>✳<\/span><h2>A little structure\.<br>A lot of possibility\.<\/h2><p>Pull up a chair:/);
+});

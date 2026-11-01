@@ -339,3 +339,28 @@ input:not([type=checkbox]):not([type=file]),textarea,select{border-radius:var(--
 .saved-room>button:first-child{border-radius:999px 0 0 999px;padding-left:16px}
 #saved-rooms .saved-delete{border-radius:0 999px 999px 0;padding:0 14px 0 12px}
 @media(max-width:700px){.message{padding:14px 16px 16px 56px}.message:before{left:13px;top:14px}.from-you{margin-left:20px}}
+/* Warm room (preview): candlelight behind the round table, a warm table surface, one colour per member (--tone, set on the seat and the message) and a gentle glow on whoever is speaking.
+   Seats keep their cut corners, so the speaking glow sits on the seat behind the chip, where the chip's clip cannot hide it.
+   Only opacity and transform animate, and reduced motion stops them; the global rule does not reach pseudo-elements, so they are stopped here. */
+.round-table{position:relative;isolation:isolate}
+.round-table:before{content:'';position:absolute;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(circle at 50% 55%,#f59e0b30 0,#f59e0b12 38%,transparent 68%)}
+.round-table:has(.table-live.live):before{animation:candle 5s ease-in-out infinite alternate}
+@keyframes candle{from{opacity:.7}to{opacity:1}}
+.table-ring:before{background:radial-gradient(circle at 50% 38%,#2c2213,#1b160f 72%);border-color:#5c4413;box-shadow:inset 0 0 0 7px #f59e0b0a,0 12px 32px #0007}
+.table-ring:after{border-color:#f59e0b38}
+.table-center{background:radial-gradient(circle at 50% 35%,#33281a,#211a0f);border-color:#7a5a1a;box-shadow:0 0 24px #f59e0b1f}
+.seat-model,.seat-agent{--tone:var(--amber-text)}
+.seat-agent{--tone:var(--blue)}
+.seat-model .seat-chip,.seat-agent .seat-chip,.message.has-tone:before{border-color:var(--tone);color:var(--tone);background:color-mix(in srgb,var(--tone) 12%,var(--panel))}
+.seat.speaking .seat-chip,.message.has-tone.is-speaking:before{background:var(--tone);border-color:var(--tone);color:#0b1020;filter:none;animation:none}
+.seat.speaking:before{content:'';position:absolute;top:-6px;left:50%;width:56px;height:56px;margin-left:-28px;z-index:-1;border-radius:12px;pointer-events:none;box-shadow:0 0 20px 5px color-mix(in srgb,var(--tone) 55%,transparent);animation:seat-breathe 2.4s ease-in-out infinite alternate}
+@keyframes seat-breathe{from{opacity:.45;transform:scale(.94)}to{opacity:1;transform:scale(1)}}
+.seat.speaking b{color:var(--tone)}
+.message.has-tone{border-color:color-mix(in srgb,var(--tone) 32%,transparent)}
+.message.has-tone.is-speaking{border-color:var(--tone);box-shadow:0 0 0 1px color-mix(in srgb,var(--tone) 45%,transparent),0 0 28px -6px color-mix(in srgb,var(--tone) 45%,transparent)}
+.message.has-tone.is-speaking>small:not(.agent-badge){color:var(--tone)}
+.empty-room{padding:64px 16px 72px;margin:8px 0;border-radius:var(--round);background:radial-gradient(ellipse at 50% 28%,#f59e0b1c,transparent 62%)}
+.empty-room>span{display:inline-grid;place-items:center;width:76px;height:76px;border-radius:50%;font-size:34px;background:radial-gradient(circle,#f59e0b33,#f59e0b0a 72%);box-shadow:0 0 44px #f59e0b2e}
+.empty-room p{color:var(--text);line-height:1.6}
+@media(max-width:700px){.empty-room{padding:44px 12px 52px}.empty-room h2{font-size:22px}}
+@media(prefers-reduced-motion:reduce){.round-table:has(.table-live.live):before,.seat.speaking:before{animation:none}}
