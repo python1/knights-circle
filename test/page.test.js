@@ -74,3 +74,25 @@ test('the transcript follows new text, with Jump to latest, and fits the window'
   assert.equal(ui.match(/follower\.jump\(false\)/g).length,3,'opening a room, a new room and your own message go to the latest');
   assert.match(css,/#transcript\{min-height:min\(360px,45dvh\);max-height:min\(680px,62dvh\)/);assert.match(css,/\.jump-latest\{[^}]*margin:-56px auto 12px/);
 });
+test('Start is disabled with its reason and a way forward, re-checked on returning to Rooms',()=>{
+  const ui=readFileSync(new URL('../src/room-ui.js',import.meta.url),'utf8');
+  assert.match(ui,/id="start-room" class="primary" aria-describedby="start-reason-text">Start conversation<\/button><button id="pause-room" disabled>Pause<\/button><\/div><\/div><p id="start-reason" class="start-reason" hidden><span id="start-reason-text"><\/span> <button type="button" id="start-fix" class="link-button"><\/button><\/p>/);
+  assert.match(ui,/\$\('#start-room'\)\.disabled=active\|\|!!blocked;\$\('#start-reason'\)\.hidden=!blocked;/);
+  assert.match(ui,/if\(rooms\)\{refreshModels\(\);render\(\);\}/);
+  assert.match(ui,/\$\('#start-fix'\)\.onclick=\(\)=>\{if\(\$\('#start-fix'\)\.dataset\.fix==='member'\)\{\$\('#team-editor'\)\.scrollIntoView\(\{block:'center'\}\);\$\('#member-model'\)\.focus\(\);\}else\{setView\('connections'\);/);
+});
+test('every dialog is modal, labelled and described, and opened through openModal (focus kept inside and returned, Esc is the safe choice)',()=>{
+  const ui=readFileSync(new URL('../src/room-ui.js',import.meta.url),'utf8'),app=readFileSync(new URL('../src/app.js',import.meta.url),'utf8');
+  for(const id of ['leave','conflict','delete'])assert.match(ui,new RegExp(`<dialog id="${id}-dialog" class="leave-dialog" role="alertdialog" aria-modal="true" aria-labelledby="${id}-title" aria-describedby="${id}-text">`));
+  assert.match(html,/<dialog id="connection-dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title" aria-describedby="dialog-note">/);assert.match(html,/<p id="dialog-note" class="dialog-note">/);
+  for(const file of readdirSync(new URL('../src/',import.meta.url)).filter(f=>f.endsWith('.js')&&f!=='dialog.js'))assert.doesNotMatch(readFileSync(new URL('../src/'+file,import.meta.url),'utf8'),/\.showModal\(/,`${file} opens a dialog without openModal`);
+  assert.equal(ui.match(/openModal\(dialog,\{fallback:/g).length,3);assert.match(app,/openModal\(dialog,\{cancelValue:'',fallback:/);
+  const d=readFileSync(new URL('../src/dialog.js',import.meta.url),'utf8');assert.match(d,/cancelValue='stay'/);assert.match(d,/addEventListener\('cancel',onCancel\)/);assert.match(d,/target\.focus\(\)/);
+});
+test('muted text and placeholders are at least 4.5:1 on every surface, and a locked team editor keeps its labels and help readable',()=>{
+  const token=n=>css.match(new RegExp(`--${n}:(#[0-9a-f]{6})`))[1],rgb=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16)),lum=c=>{const [r,g,b]=c.map(x=>{x/=255;return x<=.03928?x/12.92:((x+.055)/1.055)**2.4});return .2126*r+.7152*g+.0722*b},ratio=(a,b)=>{const [x,y]=[lum(rgb(a)),lum(rgb(b))];return (Math.max(x,y)+.05)/(Math.min(x,y)+.05)};
+  const placeholder=css.match(/input::placeholder,textarea::placeholder\{color:(#[0-9a-f]{6})\}/)[1];
+  for(const surface of ['bg','panel','surface','raise']){assert.ok(ratio(token('muted'),token(surface))>=4.5,`muted on ${surface}`);}
+  assert.ok(ratio(placeholder,token('bg'))>=4.5,'placeholders sit on the field background');
+  assert.doesNotMatch(css,/\.team-editor:disabled\{opacity:\.45\}/);assert.match(css,/\.team-editor:disabled :is\(label,legend,\.subtle\)\{color:var\(--muted\)\}/);
+});

@@ -48,3 +48,15 @@ test('New room with this team carries the settings and team, with fresh ids and 
   next.members[2].grants.memory=false;assert.equal(r.members[2].grants.memory,true);
   assert.deepEqual(next.memory,{proposals:[],pack:{title:'Garden',manifest:'abc',sequence:2}});
   delete r.memory;assert.equal(roomFrom(r).memory,undefined);});
+test('a room can start only with a team whose providers are connected and agents allowed',async()=>{
+  const {startBlocker}=await import('../src/rooms.js');const names={openai:'OpenAI',ollama:'Ollama',anthropic:'Anthropic'};
+  const opts=(connected=[],allowed=[])=>({connected:new Set(connected),agentAllowed:id=>allowed.includes(id),providerName:id=>names[id]});
+  const m=(role,provider,model='x')=>({id:role,role,provider,model,prompt:'p'});
+  assert.deepEqual(startBlocker({members:[]},opts()),{fix:'connections',text:'No models connected yet. Connect a provider, then add a member.'});
+  assert.deepEqual(startBlocker({members:[]},opts(['ollama'])),{fix:'member',text:'Add a member to the team to start.'});
+  assert.equal(startBlocker({members:[m('Lead','ollama')]},opts(['ollama'])),null);
+  assert.deepEqual(startBlocker({members:[m('Lead','openai'),m('Critic','openai'),m('Tester','ollama')]},opts(['ollama'])),{fix:'connections',text:'Connect OpenAI to start (needed by Lead and Critic).'});
+  assert.equal(startBlocker({members:[m('Lead','openai'),m('Critic','anthropic'),m('Scout','ollama')]},opts()).text,'Connect OpenAI, Anthropic and Ollama to start (needed by Lead, Critic and Scout).');
+  assert.deepEqual(startBlocker({members:[m('Helper','eureka','ag1')]},opts([],[])),{fix:'connections',text:'Helper is an external agent that is no longer allowed. Allow it again to start.'});
+  assert.equal(startBlocker({members:[m('Helper','eureka','ag1')]},opts([],['ag1'])),null,'an allowed agent needs no provider');
+});
