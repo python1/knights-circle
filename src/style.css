@@ -80,6 +80,9 @@ h3{color:#f5f7fb}
 .provider-icon{width:40px;height:40px;display:grid;place-items:center;background:var(--raise);border:1px solid var(--line-strong);color:var(--text);font:700 14px var(--mono);clip-path:polygon(var(--cut-s) 0,100% 0,100% 100%,0 100%,0 var(--cut-s))}
 .anthropic,.openai,.xai,.google,.ollama{color:var(--text)}
 .connection-state{font:500 11px var(--mono);color:var(--muted)}
+.connection-state.connected{display:inline-flex;align-items:center;gap:7px;color:var(--green);font-weight:600}
+.connection-state.connected:before{content:'';width:7px;height:7px;border-radius:50%;background:var(--green);flex:none}
+.provider-card.is-connected,.provider-card.is-connected:hover{border-color:#1f5a4a;box-shadow:inset 3px 0 0 var(--green)}
 .provider-card h3{margin:20px 0 5px;font-size:17px}
 .provider-card p{font-size:13px;margin:0 0 22px;flex:1}
 .connect-button{width:100%;text-align:left;font-size:13px;padding:11px 14px;background:var(--panel)}

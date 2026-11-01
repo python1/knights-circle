@@ -31,10 +31,10 @@ document.addEventListener('vm-changed',e=>{memoryState=e.detail;renderStatus();}
 function render(){
   renderStatus();
   $('#count').textContent=String(catalogs.size);$('#count-help').textContent=catalogs.size?`${catalogs.size} provider${catalogs.size===1?'':'s'} connected`:'No providers connected yet';$('#count').setAttribute('aria-label',$('#count-help').textContent);$('#providers').replaceChildren();
-  for(const p of providers){const card=document.createElement('article');card.className='provider-card';
+  for(const p of providers){const card=document.createElement('article'),connected=catalogs.has(p.id),count=catalogs.get(p.id)?.length||0;card.className=connected?'provider-card is-connected':'provider-card';
     const top=document.createElement('div');top.className='card-top';
     const icon=document.createElement('span');icon.className=`provider-icon ${p.id}`;icon.textContent=p.initial;
-    const badge=document.createElement('span');badge.className='connection-state';badge.textContent=tested.has(p.id)?'Test passed':catalogs.has(p.id)?'Models fetched':'Not connected';
+    const badge=document.createElement('span');badge.className=connected?'connection-state connected':'connection-state';badge.textContent=connected?`Connected · ${tested.has(p.id)?'test passed':`${count} model${count===1?'':'s'}`}`:'Not connected';
     top.append(icon,badge);const title=document.createElement('h3');title.textContent=p.name;
     const description=document.createElement('p');description.textContent=p.description;
     const button=document.createElement('button');button.className=catalogs.has(p.id)?'connect-button':'connect-button primary';button.textContent=catalogs.has(p.id)?'Manage connection ↗':'Connect provider +';button.setAttribute('aria-label',`${catalogs.has(p.id)?'Manage':'Connect'} ${p.name}`);button.onclick=()=>open(p.id);
