@@ -235,6 +235,14 @@ summary{cursor:pointer;min-height:32px;display:list-item}
 .saved-toolbar label{margin-top:0}
 #saved-rooms{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;max-height:160px;overflow:auto}
 #saved-rooms button{font-size:12px}
+.saved-room{display:inline-flex;max-width:100%}
+.saved-room>button:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#saved-rooms .saved-delete{min-width:44px;padding:0 12px;margin-left:-1px;color:var(--muted)}
+#saved-rooms .saved-delete:hover,#saved-rooms .saved-delete:focus-visible{color:var(--red);border-color:#7f2d36;background:var(--red-bg)}
+.delete-all{margin-top:12px;font-size:12px;color:var(--muted)}
+.delete-all:hover,.delete-all:focus-visible{color:var(--red);border-color:#7f2d36}
+.danger{background:var(--red-bg);border-color:#7f2d36;color:var(--red)}
+.danger:hover{border-color:var(--red)}
 .meter{font:500 12px var(--mono);color:var(--text);padding:14px 0;border-bottom:1px solid var(--line);line-height:1.6}
 .export-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:16px}
 .export-actions button{font-size:12px;padding:8px 12px}

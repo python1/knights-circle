@@ -1,4 +1,4 @@
-import {test} from 'node:test';import assert from 'node:assert/strict';import {snapshot,reserveTurn,isLoop,usageTotals,saveRoom,loadRoom,listRooms,RoomConflict} from '../src/memory.js';import {createRoom} from '../src/rooms.js';
+import {test} from 'node:test';import assert from 'node:assert/strict';import {snapshot,reserveTurn,isLoop,usageTotals,saveRoom,loadRoom,listRooms,RoomConflict,RoomDeleted,deleteRoom,deleteAllRooms} from '../src/memory.js';import {createRoom} from '../src/rooms.js';
 test('snapshot excludes credentials at room and member levels',()=>{const r=createRoom();r.key='secret';r.members=[{id:'a',key:'secret',provider:'openai',prompt:'role'}];assert.ok(!JSON.stringify(snapshot(r)).includes('secret'));});
 test('allocation cannot exceed configured cap',()=>{const r=createRoom();r.budget={cap:.3,perTurn:.1,reserved:0};for(let i=0;i<3;i++)reserveTurn(r,{provider:'openai'});assert.equal(r.budget.reserved,.3);assert.throws(()=>reserveTurn(r,{provider:'openai'}),/cap/);});
 test('invalid allocations fail closed',()=>{const r=createRoom();r.budget={cap:1,perTurn:NaN,reserved:0};assert.throws(()=>reserveTurn(r,{provider:'openai'}),/valid/);});
@@ -16,7 +16,7 @@ test('opening a saved room loads exactly its own team, fresh from storage',()=>{
   const a=createRoom(),b=createRoom();a.name='Learning to code';a.members=[{id:'1',role:'Lead',provider:'ollama',model:'qwen3:8b',prompt:'Lead.'},{id:'2',role:'Critic',provider:'ollama',model:'nemotron-mini',prompt:'Critic.'}];b.name='Other';b.members=[{id:'3',role:'Solo',provider:'ollama',model:'qwen3:8b',prompt:'Solo.'}];saveRoom(a,storage);saveRoom(b,storage);
   const opened=loadRoom(a.id,storage);opened.members.push({id:'4',role:'Planner'},{id:'5',role:'Reviewer'});
   assert.deepEqual(loadRoom(a.id,storage).members.map(m=>m.role),['Lead','Critic']);assert.deepEqual(loadRoom(b.id,storage).members.map(m=>m.role),['Solo']);assert.equal(loadRoom('missing',storage),null);});
-const memoryStorage=()=>{const data=new Map();return {data,get length(){return data.size;},key:i=>[...data.keys()][i],getItem:k=>data.get(k)??null,setItem:(k,v)=>data.set(k,v)};};
+const memoryStorage=()=>{const data=new Map();return {data,get length(){return data.size;},key:i=>[...data.keys()][i],getItem:k=>data.get(k)??null,setItem:(k,v)=>data.set(k,v),removeItem:k=>data.delete(k)};};
 test('two tabs never silently overwrite each other’s saved room',()=>{const storage=memoryStorage(),r=createRoom();r.name='Shared';saveRoom(r,storage);
   // The same saved room opened in two tabs.
   const tabA=loadRoom(r.id,storage),tabB=loadRoom(r.id,storage);
@@ -33,3 +33,16 @@ test('rooms saved before revisions existed, and brand-new rooms, save normally',
   storage.setItem('collaboration.room.v1.'+old.id,JSON.stringify({...snapshot(old)}));const opened=loadRoom(old.id,storage);opened.name='Updated';saveRoom(opened,storage);
   assert.equal(loadRoom(old.id,storage).name,'Updated');assert.equal(loadRoom(old.id,storage).rev,1);
   const fresh=createRoom();saveRoom(fresh,storage);assert.equal(fresh.rev,1);assert.equal(listRooms(storage).length,2);});
+test('deleting a saved room removes only that room',()=>{const storage=memoryStorage(),a=createRoom(),b=createRoom();a.name='A';b.name='B';saveRoom(a,storage);saveRoom(b,storage);
+  assert.equal(deleteRoom(a.id,storage),true);assert.deepEqual(listRooms(storage).map(r=>r.name),['B']);assert.equal(deleteRoom(a.id,storage),false);});
+test('Delete all removes every saved room, damaged ones too, and keeps connections, agents and Verified Memory settings',()=>{const storage=memoryStorage();
+  const keep={'collaboration.connections.v1':'{"ollama":true}','collaboration.working-models.v1':'{"ollama":"qwen3.5:4b"}','collaboration.agents.v1':'[]','collaboration.memory.v1':'{"pin":"SHA256:x"}','unrelated':'1'};
+  for(const [k,v] of Object.entries(keep))storage.setItem(k,v);for(const name of ['One','Two','Three']){const r=createRoom();r.name=name;saveRoom(r,storage);}storage.setItem('collaboration.room.v1.broken','{not json');
+  assert.equal(deleteAllRooms(storage),4);assert.deepEqual(listRooms(storage),[]);assert.deepEqual(Object.fromEntries(storage.data),keep);assert.equal(deleteAllRooms(storage),0);});
+test('a room deleted elsewhere is never silently saved back; the tab keeps its copy and can save it as new',()=>{const storage=memoryStorage(),r=createRoom();r.name='Plans';saveRoom(r,storage);
+  const otherTab=loadRoom(r.id,storage);deleteRoom(r.id,storage);otherTab.objective='still here';
+  assert.throws(()=>saveRoom(otherTab,storage),e=>e instanceof RoomDeleted&&/“Plans” was deleted/.test(e.message));assert.deepEqual(listRooms(storage),[]);
+  // What Save room does then: the copy becomes a new room.
+  otherTab.id=crypto.randomUUID();delete otherTab.rev;saveRoom(otherTab,storage);assert.deepEqual(listRooms(storage).map(x=>[x.name,x.objective]),[['Plans','still here']]);
+  // The same holds for rooms saved before revisions existed.
+  const old=createRoom();storage.setItem('collaboration.room.v1.'+old.id,JSON.stringify(snapshot(old)));const opened=loadRoom(old.id,storage);deleteRoom(old.id,storage);assert.throws(()=>saveRoom(opened,storage),RoomDeleted);});

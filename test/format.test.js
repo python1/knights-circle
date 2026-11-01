@@ -1,0 +1,2 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';import {count} from '../src/format.js';
+test('counts use the singular for exactly one',()=>{assert.equal(count(1,'message'),'1 message');assert.equal(count(0,'message'),'0 messages');assert.equal(count(2,'record'),'2 records');assert.equal(count(1,'saved room'),'1 saved room');assert.equal(count(3,'reply','replies'),'3 replies');});

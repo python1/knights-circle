@@ -5,9 +5,15 @@ export class RoomConflict extends Error{constructor(saved){super(`“${saved.nam
 // Each save of a room bumps its rev. A tab's room remembers the rev it was opened or last saved at, and a save only goes through while storage still holds that rev,
 // so two tabs never silently overwrite each other's saved room. force (the user chose to replace the other version) saves over it.
 export function saveRoom(room,storage=localStorage,{force=false}={}){let stored=null;try{stored=JSON.parse(storage.getItem(prefix+room.id));}catch{}const at=stored&&typeof stored==='object'?Number(stored.rev)||0:null,base=Number(room.rev)||0;
- if(at!==null&&at!==base&&!force)throw new RoomConflict(stored);const rev=Math.max(at??0,base)+1;
+ if(at!==null&&at!==base&&!force)throw new RoomConflict(stored);
+ // It was saved before (opened or saved rooms always have a rev) but is gone: deleted here or in another tab. Saving it back under the same id would silently undo that.
+ if(at===null&&typeof room.rev==='number'&&!force)throw new RoomDeleted(room);const rev=Math.max(at??0,base)+1;
  try{storage.setItem(prefix+room.id,JSON.stringify({...snapshot(room),rev}));}catch{throw new Error('Room could not be saved. Storage may be full or unavailable. Conversation paused to protect history.');}room.rev=rev;}
-export function listRooms(storage=localStorage){const rooms=[];for(let i=0;i<storage.length;i++){const key=storage.key(i);if(!key.startsWith(prefix))continue;try{const room=JSON.parse(storage.getItem(key));if(room.version===1&&Array.isArray(room.members)&&Array.isArray(room.messages))rooms.push(room);}catch{ /* Preserve damaged records for recovery, do not overwrite. */ }}return rooms.sort((a,b)=>b.updated-a.updated);}
+export class RoomDeleted extends Error{constructor(room){super(`“${room.name}” was deleted, so nothing was saved here. Choose Save room to keep this tab’s copy as a new room.`);this.name='RoomDeleted';}}
+// Deleting removes only saved rooms (keys under the room prefix): connections, the agent allowlist and Verified Memory settings are other keys and stay.
+export function deleteRoom(id,storage=localStorage){const had=storage.getItem(prefix+id)!==null;storage.removeItem(prefix+id);return had;}
+export function deleteAllRooms(storage=localStorage){const keys=[];for(let i=0;i<storage.length;i++){const key=storage.key(i);if(key?.startsWith(prefix))keys.push(key);}for(const key of keys)storage.removeItem(key);return keys.length;}
+export function listRooms(storage=localStorage){const rooms=[];for(let i=0;i<storage.length;i++){const key=storage.key(i);if(!key.startsWith(prefix))continue;try{const room=JSON.parse(storage.getItem(key));if(room.version===1&&Array.isArray(room.members)&&Array.isArray(room.messages))rooms.push({...room,rev:Number(room.rev)||0});}catch{ /* Preserve damaged records for recovery, do not overwrite. */ }}return rooms.sort((a,b)=>b.updated-a.updated);}
 export function loadRoom(id,storage=localStorage){return listRooms(storage).find(r=>r.id===id)||null;}
 export function findRooms(query,storage=localStorage){const q=query.toLocaleLowerCase();return listRooms(storage).filter(r=>[r.name,r.objective,...r.messages.map(m=>m.text)].join('\n').toLocaleLowerCase().includes(q));}
 // Free ($0-priced or local) models reserve nothing, so a $0 cap still allows them; paid models need a positive allocation within the cap.
