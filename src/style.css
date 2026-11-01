@@ -205,7 +205,7 @@ summary{cursor:pointer;min-height:32px;display:list-item}
 .conversation-bar{display:flex;gap:12px;justify-content:space-between;align-items:center;flex-wrap:wrap}
 .conversation-bar>strong{font:500 13px var(--mono);border:1px solid var(--line-strong);background:var(--panel);padding:10px 14px}
 .conversation-bar .actions{margin:0}
-#transcript{min-height:360px;max-height:680px;overflow:auto;flex:1;padding-right:4px}
+#transcript{min-height:min(360px,45dvh);max-height:min(680px,62dvh);overflow:auto;flex:1;padding-right:4px}
 .empty-room{text-align:center;padding:80px 10px}
 .empty-room>span{font-size:40px;color:var(--amber-text)}
 .empty-room h2{font:800 26px/1.2 var(--sans);margin-top:18px}
@@ -229,7 +229,7 @@ summary{cursor:pointer;min-height:32px;display:list-item}
 #room-notice{font-size:13px}
 #redirect-form{border-top:1px solid var(--line);margin-top:18px}
 #redirect-form button{font-size:13px;margin-top:10px}
-@media(max-width:1100px){.room-layout{grid-template-columns:minmax(0,1fr)}.room-config{display:block}#transcript{min-height:200px}}
+@media(max-width:1100px){.room-layout{grid-template-columns:minmax(0,1fr)}.room-config{display:block}#transcript{min-height:min(200px,40dvh)}}
 @media(max-width:700px){.room-heading{align-items:start}.room-heading h1{font-size:34px}.room-heading button{font-size:12px}.conversation{padding:16px}.room-layout{gap:16px}.message{padding:14px 14px 14px 54px}.message:before{left:12px}.seat{width:96px}.seat b{font-size:12px}.table-ring{width:min(100%,300px)}}
 .saved-toolbar{margin:20px 0;padding:18px 20px}
 .saved-toolbar label{margin-top:0}
@@ -364,3 +364,6 @@ input:not([type=checkbox]):not([type=file]),textarea,select{border-radius:var(--
 .empty-room p{color:var(--text);line-height:1.6}
 @media(max-width:700px){.empty-room{padding:44px 12px 52px}.empty-room h2{font-size:22px}}
 @media(prefers-reduced-motion:reduce){.round-table:has(.table-live.live):before,.seat.speaking:before{animation:none}}
+/* Jump to latest: shown over the bottom of the transcript only while the reader has scrolled up; its negative margin means showing it moves nothing. */
+.jump-latest{position:relative;z-index:3;display:block;margin:-56px auto 12px;font-size:12px;background:var(--raise);border-color:var(--amber);color:var(--amber-text);box-shadow:0 6px 20px #0009}
+.jump-latest:hover{background:#22304f}

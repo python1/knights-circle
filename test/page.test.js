@@ -65,3 +65,12 @@ test('warm room: each member has one readable colour on seat and avatar, the spe
   assert.match(css,/^\.seat-chip\{[^}]*clip-path:polygon/m);assert.doesNotMatch(css,/\.seat-chip\{clip-path:none/);
   assert.match(ui,/<div class="empty-room"><span>✳<\/span><h2>A little structure\.<br>A lot of possibility\.<\/h2><p>Pull up a chair:/);
 });
+test('the transcript follows new text, with Jump to latest, and fits the window',()=>{
+  const ui=readFileSync(new URL('../src/room-ui.js',import.meta.url),'utf8');
+  assert.match(ui,/<\/div><button type="button" id="jump-latest" class="jump-latest" hidden>↓ Jump to latest<\/button><form id="redirect-form">/);
+  assert.match(ui,/follow\(\$\('#transcript'\),\{onChange:on=>\{\$\('#jump-latest'\)\.hidden=on;\},reduceMotion:\(\)=>matchMedia\('\(prefers-reduced-motion: reduce\)'\)\.matches\}\)/);
+  assert.match(ui,/\$\('#jump-latest'\)\.addEventListener\('wheel',e=>\{e\.preventDefault\(\);const box=\$\('#transcript'\);box\.scrollBy\(/,'a wheel over the button scrolls the transcript');
+  assert.match(ui,/follower\.update\(\);vmRender\(\);saveState\(\);\}/,'every render keeps up when following');
+  assert.equal(ui.match(/follower\.jump\(false\)/g).length,3,'opening a room, a new room and your own message go to the latest');
+  assert.match(css,/#transcript\{min-height:min\(360px,45dvh\);max-height:min\(680px,62dvh\)/);assert.match(css,/\.jump-latest\{[^}]*margin:-56px auto 12px/);
+});
