@@ -40,9 +40,13 @@ Browsers differ here. From the https site, Safari (and every iOS browser, all We
 
 Each phase must retain a working standalone checkout. Review target: python1/knights-circle, main. Never merge, deploy, publish, or release from this workflow.
 
+## License
+
+Knights Circle is © 2026 Paul Charydczak, licensed under the [GNU AGPL v3.0 only](LICENSE) (`AGPL-3.0-only`); the third-party files below keep their own licenses.
+
 ## License credits
 
-No third-party runtime packages, copied assets, or SDK source are included, except two fonts self-hosted in `fonts/`: Plus Jakarta Sans (The Plus Jakarta Sans Project Authors) and JetBrains Mono (The JetBrains Mono Project Authors), both under the SIL Open Font License 1.1 (`fonts/OFL-*.txt`), latin subsets taken from the @fontsource-variable 5.3.0 packages. They load only from this site (`font-src 'self'`). Provider names appear only to identify integrations and do not form the product name. License/NOTICE files of any future dependencies must be retained. This repository has no distribution license selected yet; Paul must choose one before release.
+The Verified Memory verifier, pack builder and zip helper (`src/vm-verify.js`, `src/vm-pack-core.js`, `src/vm-zip.js`) are vendored unchanged under the MIT License (`docs/verified-memory-LICENSE`; see `docs/verified-memory.md`). No other third-party runtime packages, copied assets, or SDK source are included, except two fonts self-hosted in `fonts/`: Plus Jakarta Sans (The Plus Jakarta Sans Project Authors) and JetBrains Mono (The JetBrains Mono Project Authors), both under the SIL Open Font License 1.1 (`fonts/OFL-*.txt`), latin subsets taken from the @fontsource-variable 5.3.0 packages. They load only from this site (`font-src 'self'`). Provider names appear only to identify integrations and do not form the product name. License/NOTICE files of any future dependencies must be retained.
 
 ## Official integration references
 
