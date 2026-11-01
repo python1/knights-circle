@@ -2,7 +2,7 @@
 
 Created by Paul Charydczak.
 
-Unpublished development work. **Not release-ready.** No real-provider or fresh-account verification has been performed. Product name selected by Paul: Knights Circle. Trademark clearance has not been performed.
+A shared room where several AI models, each with its own role, work on one objective together. It runs in your browser with your own provider keys or a local Ollama, and nothing is sent to a Knights Circle server.
 
 ## Run locally
 
@@ -23,22 +23,28 @@ API keys live only in a JavaScript Map in the current browser tab. They are neve
 
 Inference and catalog requests go directly to fixed provider origins, with keys in headers, no cookies, and redirects rejected. There is no telemetry, remote font, CDN script, or request logging; the two fonts are served from this site. Provider response error bodies are not displayed or logged. Browser developer tools and extensions may still observe requests. Any script compromise of the app origin can expose in-memory keys. Users must supply their own credentials; never embed a developer/shared key.
 
-This client-side BYOK design requires security review before public release. OpenAI recommends keeping secrets on servers. A relay would receive the user's credential, conflicting with the strict requirement that it only be sent to the provider; no relay is implemented.
+This is a client-side bring-your-own-key design. OpenAI recommends keeping secrets on servers. A relay would receive the user's credential, conflicting with the strict requirement that it only be sent to the provider; no relay is implemented.
 
 Ollama targets only http://127.0.0.1:11434, requires an installed/running local instance and origin configuration. HTTPS public pages, browser local-network permissions, CORS, and mobile device access require real testing. A phone's loopback is not a desktop's loopback.
 
 Browsers differ here. From the https site, Safari (and every iOS browser, all WebKit) blocks requests to http://127.0.0.1 as mixed content, so local Ollama works only in Chromium browsers and Firefox. Chrome first asks for local network access, and a declined prompt blocks the request. The connection guide detects both cases instead of reporting that Ollama is off. Checked in Safari 26.3.1 and Chrome 156 on macOS (October 2026).
 
-## Phases
+## Features
 
-1. Foundation/provider connections: model catalogs, PKCE, BYOK, streaming smoke test.
-2. Rooms and orchestration: roles, shared transcript, interruption, four modes.
-3. Memory/cost controls: saved room history, search, reservation ledger, safety limits.
-4. Export/sharing/PWA: Markdown/PDF, read-only snapshots, installable offline shell.
-5. Verified Memory: signed packs checked in the browser, labelled proposals, export for offline signing (docs/verified-memory.md).
-6. External agents (Eureka): agents on this computer join rooms over a signed handshake, with per-member grants (docs/external-agents.md).
+- **Provider connections:** model catalogs, OpenRouter sign-in (PKCE), your own keys, streaming.
+- **Rooms:** roles, one shared transcript, pause and redirect, and four modes: round-robin, moderator-led, debate → summary, and brainstorm.
+- **Memory and cost controls:** saved rooms with search, per-room cost allocation, and repetition limits.
+- **Export and sharing:** Markdown and PDF export, read-only snapshot links, and an installable offline shell.
+- **Verified Memory:** signed packs checked in the browser, labelled proposals, and export for offline signing (`docs/verified-memory.md`).
+- **External agents (Eureka):** agents on this computer join rooms over a signed handshake, with per-member grants (`docs/external-agents.md`).
 
-Each phase must retain a working standalone checkout. Review target: python1/knights-circle, main. Never merge, deploy, publish, or release from this workflow.
+## Limits
+
+- **Your data:** saved rooms are plain text in this browser's local storage. They are not synced or backed up, and the browser can evict them, so export what matters. API keys are never saved.
+- **Cost controls:** a room's cost cap limits what the app allocates per request. It is not a provider billing guarantee, so also set limits with each provider.
+- **Context and repetition:** every turn sends the whole transcript, which can exceed a model's context limit. Repetition detection catches identical replies only.
+- **Prompt injection:** models see each other's replies. Labelling reduces prompt injection but cannot prevent it, so don't put secrets in room prompts.
+- **Share links:** a link carries its snapshot in the URL fragment. Anyone with the link can read it, and it cannot be revoked.
 
 ## License
 
@@ -59,6 +65,6 @@ The Verified Memory verifier, pack builder and zip helper (`src/vm-verify.js`, `
 - https://docs.ollama.com/api/chat
 - https://docs.ollama.com/faq
 
-## Preview hosting
+## Hosting
 
-Paul connects the repository to Vercel. `npm run build` copies only allowlisted app assets to `dist/`. Security headers are defined in `vercel.json`. Live testing awaits Paul’s preview URLs. No deployment is performed by this workflow.
+`npm run build` copies only allowlisted app assets to `dist/`. Security headers for Vercel are defined in `vercel.json`.
