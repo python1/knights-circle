@@ -1,4 +1,4 @@
-import {test} from 'node:test';import assert from 'node:assert/strict';import {RoomRunner,createRoom,blankRoom,leaveRoom,validateRoom,transcriptFor,continueRoom} from '../src/rooms.js';
+import {test} from 'node:test';import assert from 'node:assert/strict';import {RoomRunner,createRoom,blankRoom,leaveRoom,validateRoom,transcriptFor,continueRoom,teamLocked,roomFrom} from '../src/rooms.js';
 function fixture(){const r=createRoom();r.objective='Plan a launch';r.turnCap=3;r.members=[{id:'a',role:'Lead',provider:'ollama',model:'one',prompt:'Lead.'},{id:'b',role:'Critic',provider:'ollama',model:'two',prompt:'Critique.'}];return r;}
 test('round-robin shares previous turns and caps requests',async()=>{const r=fixture(),seen=[];const runner=new RoomRunner(r,{keyFor:()=>'',generate:async function*(args){seen.push(args);yield{text:`reply ${seen.length}`};}});await runner.run();assert.deepEqual(seen.map(x=>x.model),['one','two','one']);assert.match(seen[1].messages.at(-1).content,/reply 1/);assert.equal(r.status,'complete');assert.equal(r.turn,3);});
 test('duplicate starts never create parallel runs',async()=>{const r=fixture();let count=0;const runner=new RoomRunner(r,{keyFor:()=>'',generate:async function*(){count++;yield{text:'reply'};}});await Promise.all([runner.run(),runner.run()]);assert.equal(count,3);});
@@ -31,3 +31,20 @@ test('leaving a room with unsaved changes needs an explicit save or discard; any
   assert.equal(await go(true,'discard'),true);assert.equal(saved,0);
   assert.equal(await go(true,'save'),true);assert.equal(saved,1);
   await assert.rejects(leaveRoom({unsaved:true,ask:async()=>'save',save:()=>{throw new Error('Room could not be saved.');}}),/could not be saved/);});
+test('a save that did not happen (cancelled over another tab) keeps the user in the room; an async save that did lets them leave',async()=>{
+  assert.equal(await leaveRoom({unsaved:true,ask:async()=>'save',save:async()=>false}),false);
+  assert.equal(await leaveRoom({unsaved:true,ask:async()=>'save',save:async()=>true}),true);});
+test('the team locks once the conversation has started',()=>{const r=fixture();assert.equal(teamLocked(r),false);r.turn=1;assert.equal(teamLocked(r),true);});
+test('New room with this team carries the settings and team, with fresh ids and none of the conversation',()=>{
+  const r=fixture();Object.assign(r,{name:'Launch plan',mode:'debate',turnCap:7,turn:3,status:'paused',notice:'x',budget:{cap:2,perTurn:.25,reserved:.75},messages:[{id:'m',speaker:'Lead',text:'hi',status:'complete'}],
+    memory:{pack:{title:'Garden',manifest:'abc',sequence:2},proposals:[{id:'p',status:'pending'}]}});
+  r.members.push({id:'c',role:'Agent',provider:'eureka',model:'ag',prompt:'Help.',label:'Bot',grants:{transcript:'full',memory:true,propose:false},maxTokens:900});
+  const next=roomFrom(r);
+  assert.notEqual(next.id,r.id);assert.equal(next.name,'Launch plan (new)');assert.equal(roomFrom(next).name,'Launch plan (new)');
+  assert.deepEqual({objective:next.objective,mode:next.mode,turnCap:next.turnCap,budget:next.budget,messages:next.messages,turn:next.turn,status:next.status},{objective:'Plan a launch',mode:'debate',turnCap:7,budget:{cap:2,perTurn:.25,reserved:0},messages:[],turn:0,status:'idle'});
+  assert.equal(next.notice,undefined);assert.equal(teamLocked(next),false);
+  assert.deepEqual(next.members.map(({id,...m})=>m),r.members.map(({id,...m})=>m));
+  assert.ok(next.members.every((m,i)=>m.id!==r.members[i].id&&m!==r.members[i]));
+  next.members[2].grants.memory=false;assert.equal(r.members[2].grants.memory,true);
+  assert.deepEqual(next.memory,{proposals:[],pack:{title:'Garden',manifest:'abc',sequence:2}});
+  delete r.memory;assert.equal(roomFrom(r).memory,undefined);});
