@@ -339,3 +339,18 @@ input:not([type=checkbox]):not([type=file]),textarea,select{border-radius:var(--
 .saved-room>button:first-child{border-radius:999px 0 0 999px;padding-left:16px}
 #saved-rooms .saved-delete{border-radius:0 999px 999px 0;padding:0 14px 0 12px}
 @media(max-width:700px){.message{padding:14px 16px 16px 56px}.message:before{left:13px;top:14px}.from-you{margin-left:20px}}
+/* Rounded everywhere (preview): one rounded look for buttons, panels, dialogs, cards, tabs and seats. The cut corners are replaced; colours are unchanged.
+   Radius scale: 8px small badges, 12px buttons, fields and callouts, 16px messages and inner cards, 20px panels and dialogs; pills and seats are fully round. */
+:root{--round-xs:8px;--round-l:20px}
+button,.primary-link,.mark,.provider-icon{clip-path:none;border-radius:var(--round-s)}
+button:focus-visible,.primary-link:focus-visible{outline-offset:2px}
+.primary:focus-visible{outline-color:var(--amber-text)}
+.provider-card,.agents-body>div,.room-config,.conversation,.round-table,.saved-toolbar,.ollama-guide{clip-path:none;border-radius:var(--round-l)}
+dialog{clip-path:none;border-radius:var(--round-l)}
+nav a,nav button{border-radius:var(--round-s)}
+.orb,.seat-chip{clip-path:none;border-radius:50%}
+.security-note,.no-models,.team-lock,.vm-badge,.continue-box,.agents-toggle,.agent-grants,.turn-failed{border-radius:var(--round-s)}
+.vm-proposals,.vm-card,.ollama-guide pre,pre,#test-output{border-radius:var(--round-s)}
+.vm-card blockquote,.markdown blockquote{border-radius:0 var(--round-xs) var(--round-xs) 0}
+.local-badge,.pill,.conversation-bar>strong{border-radius:999px}
+.markdown code{border-radius:6px}

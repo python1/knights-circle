@@ -38,9 +38,12 @@ test('saved rooms each have a delete action, and there is a Delete all, confirme
   assert.match(ui,/<button id="delete-all-rooms" class="delete-all" hidden>Delete all saved rooms<\/button>/);
   assert.match(ui,/setAttribute\('aria-label',`Delete saved room “\$\{saved\.name\}”`\)/);assert.match(ui,/This can’t be undone\./);
 });
-test('rounded chat look: messages, text fields and saved-room pills are rounded; buttons and panels keep their cut corners',()=>{
-  const block=css.slice(css.indexOf('/* Rounded chat look'));
-  for(const rule of [/\.message\{border-radius:var\(--round\)/,/input:not\(\[type=checkbox\]\):not\(\[type=file\]\),textarea,select\{border-radius:var\(--round-s\)\}/,/#redirect\{border-radius:var\(--round\)\}/,/\.saved-room>button:first-child\{border-radius:999px 0 0 999px/,/#saved-rooms \.saved-delete\{border-radius:0 999px 999px 0/])assert.match(block,rule);
-  assert.match(css,/^button\{[^}]*clip-path:polygon/m);assert.match(css,/\.room-config,\.conversation,\.round-table,\.saved-toolbar[^{]*\{[^}]*clip-path:polygon/);
-  assert.doesNotMatch(block,/(^|\})button\{|\.conversation\{|\.room-config\{|dialog\{/);
+test('one rounded look: no cut corners remain, and buttons, panels, dialogs, cards, tabs and seats are rounded',()=>{
+  const start=css.indexOf('/* Rounded chat look'),rounded=css.slice(start),rules=[...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m=>({at:m.index,selectors:m[1].trim().split(',').map(x=>x.trim()),body:m[2]}));
+  const cut=rules.filter(r=>/clip-path:polygon/.test(r.body)).flatMap(r=>r.selectors);assert.ok(cut.length>5);
+  for(const selector of cut)assert.ok(rules.some(r=>r.at>start&&r.selectors.includes(selector)&&/clip-path:none/.test(r.body)),`cut corner left on ${selector}`);
+  const radius=selector=>rules.some(r=>r.at>start&&r.selectors.includes(selector)&&/border-radius:/.test(r.body));
+  for(const selector of ['button','.primary-link','.provider-card','.room-config','.conversation','.round-table','.saved-toolbar','dialog','nav a','.seat-chip','.orb','.message','.message:before','input:not([type=checkbox]):not([type=file])','#redirect','.saved-room>button:first-child','#saved-rooms .saved-delete'])assert.ok(radius(selector),`no rounding for ${selector}`);
+  assert.match(rounded,/\.orb,\.seat-chip\{clip-path:none;border-radius:50%\}/);
+  assert.doesNotMatch(rounded,/--(bg|panel|surface|raise|amber|amber-text|blue|green):/,'colours are unchanged');
 });
