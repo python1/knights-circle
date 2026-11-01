@@ -95,6 +95,8 @@ h3{color:#f5f7fb}
 .skip:focus{top:0}
 dialog{border:1px solid var(--line-strong);border-radius:0;padding:30px;max-width:640px;width:calc(100% - 28px);max-height:90dvh;color:var(--text);background:var(--panel);box-shadow:0 20px 100px #0009;clip-path:polygon(0 0,calc(100% - 16px) 0,100% 16px,100% 100%,0 100%)}
 dialog::backdrop{background:#050812cc;backdrop-filter:blur(3px)}
+.leave-dialog{max-width:480px}.leave-dialog h2{margin:8px 0 10px;font-size:20px}.leave-dialog p{font-size:14px;color:var(--muted);margin:0 0 22px}
+.leave-actions{display:flex;flex-wrap:wrap;gap:10px}.leave-actions button{flex:1 1 auto}
 .dialog-heading{display:flex;justify-content:space-between;align-items:center}
 .dialog-heading h2{margin-top:8px}
 .icon-button{font-size:24px;line-height:1;padding:6px 12px;min-width:44px}
