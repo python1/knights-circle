@@ -38,3 +38,9 @@ test('saved rooms each have a delete action, and there is a Delete all, confirme
   assert.match(ui,/<button id="delete-all-rooms" class="delete-all" hidden>Delete all saved rooms<\/button>/);
   assert.match(ui,/setAttribute\('aria-label',`Delete saved room “\$\{saved\.name\}”`\)/);assert.match(ui,/This can’t be undone\./);
 });
+test('rounded chat look: messages, text fields and saved-room pills are rounded; buttons and panels keep their cut corners',()=>{
+  const block=css.slice(css.indexOf('/* Rounded chat look'));
+  for(const rule of [/\.message\{border-radius:var\(--round\)/,/input:not\(\[type=checkbox\]\):not\(\[type=file\]\),textarea,select\{border-radius:var\(--round-s\)\}/,/#redirect\{border-radius:var\(--round\)\}/,/\.saved-room>button:first-child\{border-radius:999px 0 0 999px/,/#saved-rooms \.saved-delete\{border-radius:0 999px 999px 0/])assert.match(block,rule);
+  assert.match(css,/^button\{[^}]*clip-path:polygon/m);assert.match(css,/\.room-config,\.conversation,\.round-table,\.saved-toolbar[^{]*\{[^}]*clip-path:polygon/);
+  assert.doesNotMatch(block,/(^|\})button\{|\.conversation\{|\.room-config\{|dialog\{/);
+});
