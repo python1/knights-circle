@@ -300,6 +300,14 @@ summary{cursor:pointer;min-height:32px;display:list-item}
 .agent-row small{color:var(--muted);font:500 11px var(--mono)}
 .agent-row button{padding:8px 12px;font-size:12px}
 #agent-status{font-size:13px;line-height:1.5}
+.team-editor{border:0;padding:0;margin:0;min-width:0}
+.team-editor .team-legend{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.team-editor:disabled{opacity:.45}
+.team-editor:disabled *{cursor:not-allowed}
+.team-lock{margin:14px 0 4px;padding:12px 14px;border:1px solid #5c4413;border-left:3px solid var(--amber);background:var(--amber-soft);font-size:13px}
+.team-lock p{margin:0 0 4px;color:var(--text)}
+.team-lock strong{color:var(--amber-text)}
+.room-config .team-lock button{margin-top:8px}
 .agent-grants{border:1px dashed #1f6f94;padding:8px 12px 10px;margin:10px 0;background:#0c1a26}
 .agent-grants legend{font-size:13px;font-weight:700;padding:0 4px;color:var(--blue)}
 .agent-grants p{font-size:12px;margin:8px 0 0}

@@ -14,3 +14,12 @@ test('the links show once at each width: sidebar on desktop, page credit on phon
   const phone=css.slice(css.indexOf('@media(max-width:700px)'));
   assert.match(phone.slice(0,phone.indexOf('}}')),/\.sidebar footer\{display:none\}\.public-credit \.credit-links\{display:block\}/);
 });
+test('the team editor is one fieldset with the lock reason and its way forward right before it, and Add to team is the primary button',()=>{
+  const ui=readFileSync(new URL('../src/room-ui.js',import.meta.url),'utf8');
+  const lock=ui.indexOf('<div id="team-lock"'),editor=ui.indexOf('<fieldset id="team-editor"'),end=ui.indexOf('</fieldset></section>',editor);
+  assert.ok(lock>0&&editor>lock&&ui.slice(lock,editor).includes('<button id="copy-room">New room with this team</button>')&&ui.slice(lock,editor).endsWith('</div>'));
+  const fields=ui.slice(editor,end);for(const id of ['member-model','room-free-only','agent-grants','member-role','role-name','role-prompt'])assert.ok(fields.includes(`id="${id}"`),id);
+  assert.ok(fields.endsWith('<button id="add-member" class="primary">+ Add to team</button>'));
+  assert.match(ui,/\$\('#team-editor'\)\.disabled=active\|\|locked;\$\('#team-lock'\)\.hidden=!locked;\$\('#add-member'\)\.classList\.toggle\('primary',!active&&!locked\)/);
+  assert.doesNotMatch(ui,/listRooms\(\)\[0\]/,'the app must not reopen the last saved room on load');
+});
