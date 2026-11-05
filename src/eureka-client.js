@@ -176,7 +176,7 @@ export class EurekaPeer {
 }
 
 const REFUSALS = {
-  untrusted_key: 'The agent doesn’t trust this browser’s room key. Add the room key to the agent’s trust file with the room-turn grant.',
+  untrusted_key: 'The agent doesn’t trust this browser’s room key. On the agent’s computer, run eureka-daemon stop, then eureka-daemon setup again, and paste this browser’s room key from Connections → Advanced: bring your own bot. Then run eureka-daemon start. Advanced users can run eureka-daemon trust add with the room-turn grant instead, then restart the daemon.',
   revoked_key: 'The agent has revoked this browser’s room key.',
   capability_not_granted: 'The agent trusts this room but hasn’t granted it room-turn (or doesn’t offer it: start the daemon with EUREKA_ROOM_TURN=1).',
   stale_timestamp: 'The agent refused the request as stale. Check that this computer’s clock is correct.',
