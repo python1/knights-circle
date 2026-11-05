@@ -1,14 +1,21 @@
-// Connections → External agents: this browser's room key, and the allowlist of agents it will talk to.
+// Connections → External agents: how to connect eureka-daemon, this browser's room key, and the allowlist of agents it will talk to.
 import {loadAgents,saveAgents,addAgent,checkAgent,roomIdentity} from './agents.js';
-export function trustCommand(identity){return `./venv/bin/python -c "
-import json, os
-from pathlib import Path
-from eureka_protocol.src.eureka_daemon.trust import TrustList
-p = Path(os.environ['EUREKA_TRUST_PATH']).expanduser()
-t = TrustList.load(p) if p.exists() else TrustList()
-t.add('knights-circle-${identity.nodeId}', '${identity.publicKey}', ['room-turn'])
-p.write_text(json.dumps(t.to_document(), indent=2) + '\\\\n'); p.chmod(0o600)
-print('trusted knights-circle-${identity.nodeId} with room-turn')"`;}
+// eureka-daemon's downloads. The visitor's computer may not be the agent's, so this only narrows the list, and
+// only on what a browser reports reliably: a Mac's chip and a Linux browser's architecture often aren't.
+export const DAEMON_FILES={mac:['eureka-daemon-aarch64-apple-darwin.tar.gz','eureka-daemon-x86_64-apple-darwin.tar.gz'],windows:['eureka-daemon-x86_64-pc-windows-msvc.zip'],linux:['eureka-daemon-x86_64-unknown-linux-musl.tar.gz','eureka-daemon-aarch64-unknown-linux-musl.tar.gz']};
+export function daemonDownloads(nav=globalThis.navigator){
+  const ua=String(nav?.userAgent||''),platform=String(nav?.userAgentData?.platform||nav?.platform||'');
+  // Phones and tablets can't run it, and an iPad asking for the desktop site says it's a Mac.
+  if(nav?.userAgentData?.mobile||/iPhone|iPad|iPod|Android/.test(ua)||(/mac/i.test(platform+ua)&&nav?.maxTouchPoints>1))return [];
+  if(/win/i.test(platform)||/Windows NT/.test(ua))return DAEMON_FILES.windows;
+  if(/mac/i.test(platform)||/Macintosh/.test(ua))return DAEMON_FILES.mac;
+  if(/CrOS/.test(ua))return [];
+  if(/linux/i.test(platform)||/Linux|X11/.test(ua)){
+    if(/x86_64|amd64/i.test(platform+ua))return [DAEMON_FILES.linux[0]];
+    if(/aarch64|arm64/i.test(platform+ua))return [DAEMON_FILES.linux[1]];
+    return DAEMON_FILES.linux;}
+  return [];
+}
 export function mountAgents(){
   const $=s=>document.querySelector(s);let agents=loadAgents();const changed=()=>document.dispatchEvent(new Event('agents-changed'));
   // Collapsed by default; whether it's open is remembered per browser.
@@ -22,7 +29,11 @@ export function mountAgents(){
     const remove=document.createElement('button');remove.type='button';remove.textContent='Remove';remove.setAttribute('aria-label',`Remove ${a.label}`);remove.onclick=()=>{agents=agents.filter(x=>x.id!==a.id);try{saveAgents(agents);}catch{}status(`Removed ${a.label}. Rooms that include it can’t run its turns until it’s added again.`);render();changed();};
     row.append(info,check,remove);return row;}));}
   $('#agent-form').onsubmit=async e=>{e.preventDefault();try{agents=await addAgent(agents,{label:$('#agent-label').value,url:$('#agent-url').value,publicKey:$('#agent-key').value});saveAgents(agents);$('#agent-form').reset();status(`Added. Choose Check to confirm it answers, then add it to a room’s team.`);render();changed();}catch(err){status(err.message);}};
-  $('#show-room-key').onclick=async()=>{try{const id=await roomIdentity();$('#room-key').value=id.publicKey;$('#room-node').textContent=`Node ${id.nodeId}. Non-extractable: ${id.extractable?'no':'yes'}.`;$('#trust-command').textContent=trustCommand(id);$('#room-key-box').hidden=false;$('#show-room-key').hidden=true;}catch(err){status(`Couldn’t create the room key: ${err.message}. This browser needs Ed25519 support and IndexedDB.`);}};
-  $('#copy-trust').onclick=async()=>{try{await navigator.clipboard.writeText($('#trust-command').textContent);$('#copy-trust').textContent='Copied';setTimeout(()=>{$('#copy-trust').textContent='Copy command';},1500);}catch{$('#copy-trust').textContent='Select the text to copy';}};
+  // Every download stays listed without scripts. With them, the list narrows to this computer's files when it can tell.
+  const shown=daemonDownloads();
+  if(shown.length){for(const item of document.querySelectorAll('#daemon-downloads li'))item.hidden=!shown.includes(item.dataset.file);
+    const suggest=$('#daemon-suggest');suggest.textContent=shown.length===1?'For this computer:':'For this computer, one of:';suggest.hidden=false;}
+  $('#show-room-key').onclick=async()=>{try{const id=await roomIdentity();$('#room-key').value=id.publicKey;$('#room-node').textContent=`Node ${id.nodeId}. Non-extractable: ${id.extractable?'no':'yes'}.`;$('#room-key-box').hidden=false;$('#show-room-key').hidden=true;}catch(err){status(`Couldn’t create the room key: ${err.message}. This browser needs Ed25519 support and IndexedDB.`);}};
+  $('#copy-room-key').onclick=async()=>{const button=$('#copy-room-key');try{await navigator.clipboard.writeText($('#room-key').value);button.textContent='Copied';setTimeout(()=>{button.textContent='Copy key';},1500);}catch{$('#room-key').select();button.textContent='Selected: copy it with your keyboard';}};
   render();
 }

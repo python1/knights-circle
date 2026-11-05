@@ -87,7 +87,7 @@ test('a handshake and a signed room turn against a trusting agent return its ver
 test('the agent refuses a room key it does not trust, with a reason the person can act on',async()=>{
   const me=await createIdentity(memoryStore()),daemon=await fakeDaemon({trusted:[]});
   const peer=new EurekaPeer({url:'http://127.0.0.1:8765',publicKey:daemon.publicKey,identity:me,fetcher:daemon.fetcher});
-  await assert.rejects(peer.turn(turnPayload('hi')),e=>e instanceof EurekaError&&e.reason==='untrusted_key'&&/trust file/.test(e.message));
+  await assert.rejects(peer.turn(turnPayload('hi')),e=>e instanceof EurekaError&&e.reason==='untrusted_key'&&/run eureka-daemon stop, then eureka-daemon setup again, and paste this browser’s room key/.test(e.message)&&/eureka-daemon trust add with the room-turn grant/.test(e.message)&&!/trust file/.test(e.message));
   assert.equal(daemon.state.turns.length,0);
 });
 test('a different agent at the pinned address, or one signing with another key, is refused before any turn',async()=>{
