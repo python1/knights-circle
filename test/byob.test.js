@@ -17,18 +17,18 @@ test('the download list narrows only on what the browser reliably reports',()=>{
   assert.deepEqual(daemonDownloads({userAgent:'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.3 Safari/605.1.15',maxTouchPoints:5}),[]);
   assert.deepEqual(daemonDownloads({}),[]);
 });
-test('every download is listed in the page, linked at v0.1.0, so it works without scripts',()=>{
+test('every download is listed in the page, linked at v0.2.0, so it works without scripts',()=>{
   for(const file of Object.values(DAEMON_FILES).flat())
-    assert.ok(panel.includes(`<li data-file="${file}"><a href="https://github.com/python1/eureka_protocol/releases/download/v0.1.0/${file}" target="_blank" rel="noopener noreferrer">`),file);
-  assert.ok(panel.includes('href="https://github.com/python1/eureka_protocol/releases/tag/v0.1.0"'));
+    assert.ok(panel.includes(`<li data-file="${file}"><a href="https://github.com/python1/eureka_protocol/releases/download/v0.2.0/${file}" target="_blank" rel="noopener noreferrer">`),file);
+  assert.ok(panel.includes('href="https://github.com/python1/eureka_protocol/releases/tag/v0.2.0"'));
 });
-test('bring your own bot is three plain steps, with the guides at v0.1.0 and no Python command',()=>{
+test('bring your own bot is three plain steps, with the guides at v0.2.0 and no Python command',()=>{
   const steps=panel.slice(panel.indexOf('<ol class="byob-steps">'),panel.indexOf('</ol>'));
-  const order=['Download eureka-daemon v0.1.0','Run <code>eureka-daemon setup</code>','id="show-room-key"','id="copy-room-key"','Paste what setup prints','Check'];
+  const order=['Download eureka-daemon v0.2.0','Run <code>eureka-daemon setup</code>','id="show-room-key"','id="copy-room-key"','Paste what setup prints','Check'];
   let at=0;for(const part of order){const found=steps.indexOf(part,at);assert.ok(found>=at,part);at=found;}
   assert.equal((steps.match(/<li><strong>/g)||[]).length,3);
   for(const page of ['quickstart','grok-bot','openclaw','hermes','ollama'])
-    assert.match(panel,new RegExp(`<a href="https://github.com/python1/eureka_protocol/blob/v0\\.1\\.0/docs/seat/${page}\\.md" target="_blank" rel="noopener noreferrer">`),page);
+    assert.match(panel,new RegExp(`<a href="https://github.com/python1/eureka_protocol/blob/v0\\.2\\.0/docs/seat/${page}\\.md" target="_blank" rel="noopener noreferrer">`),page);
   assert.doesNotMatch(panel+ui,/venv|python -c|TrustList|trust-command|copy-trust/);
   assert.match(ui,/navigator\.clipboard\.writeText\(\$\('#room-key'\)\.value\)/);
 });
