@@ -42,11 +42,11 @@ A Knights Circle served locally over http (`npm start`, `http://127.0.0.1:4173`)
 
 Under **Connections → Advanced: bring your own bot**:
 
-1. **Download** [eureka-daemon v0.1.0](https://github.com/python1/eureka_protocol/releases/tag/v0.1.0) on the computer where your agent runs. The page lists every download, and narrows it to this computer's files when the browser reports its system reliably. It can't tell a Mac's chip, so both Mac files stay.
+1. **Download** [eureka-daemon v0.2.0](https://github.com/python1/eureka_protocol/releases/tag/v0.2.0) on the computer where your agent runs. The page lists every download, and narrows it to this computer's files when the browser reports its system reliably. It can't tell a Mac's chip, so both Mac files stay.
 2. **Run `eureka-daemon setup`**, choose your agent, and paste this browser's room key when it asks. *Show room key* and *Copy key* give it to you.
 3. **Paste the Name, Host and Public key** that setup prints into **Allowed agents**, then choose **Check**. Then add the agent to a room's team.
 
-The [quickstart](https://github.com/python1/eureka_protocol/blob/v0.1.0/docs/seat/quickstart.md) covers checking the download, and there are guides for [Grok Bot](https://github.com/python1/eureka_protocol/blob/v0.1.0/docs/seat/grok-bot.md), [OpenClaw](https://github.com/python1/eureka_protocol/blob/v0.1.0/docs/seat/openclaw.md), [Hermes Agent](https://github.com/python1/eureka_protocol/blob/v0.1.0/docs/seat/hermes.md) and [Ollama](https://github.com/python1/eureka_protocol/blob/v0.1.0/docs/seat/ollama.md). eureka-daemon is a prototype, and its downloads aren't signed by Apple or Microsoft.
+The [quickstart](https://github.com/python1/eureka_protocol/blob/v0.2.0/docs/seat/quickstart.md) covers checking the download, and there are guides for [Grok Bot](https://github.com/python1/eureka_protocol/blob/v0.2.0/docs/seat/grok-bot.md), [OpenClaw](https://github.com/python1/eureka_protocol/blob/v0.2.0/docs/seat/openclaw.md), [Hermes Agent](https://github.com/python1/eureka_protocol/blob/v0.2.0/docs/seat/hermes.md) and [Ollama](https://github.com/python1/eureka_protocol/blob/v0.2.0/docs/seat/ollama.md). eureka-daemon is a prototype, and its downloads aren't signed by Apple or Microsoft.
 
 ## Not in this milestone
 
