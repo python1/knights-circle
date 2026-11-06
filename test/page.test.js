@@ -2,12 +2,16 @@ import test from 'node:test';import assert from 'node:assert/strict';import {rea
 const html=readFileSync(new URL('../index.html',import.meta.url),'utf8'),css=readFileSync(new URL('../src/style.css',import.meta.url),'utf8');
 const sidebar=html.slice(html.indexOf('<aside class="sidebar"'),html.indexOf('</aside>')),credit=html.match(/<p class="public-credit">.*?<\/p>/)[0];
 const links=part=>[...part.matchAll(/<a href="([^"]+)"([^>]*)>([^<]+)<\/a>/g)].map(([,href,attrs,text])=>({href,attrs,text}));
-test('the sidebar has no build list, only the credit with Source and License links',()=>{
+test('the sidebar has no build list, only the credit with Source, License and Support links',()=>{
   assert.doesNotMatch(sidebar,/roadmap|BUILD|LIVE|NEXT|Second machine/);assert.doesNotMatch(css,/\.roadmap/);
   for(const part of [sidebar,credit]){assert.match(part,/Created by Paul Charydczak/);
-    const found=links(part).filter(l=>l.href.startsWith('https://github.com/'));
-    assert.deepEqual(found.map(({href,text})=>({href,text})),[{href:'https://github.com/python1/knights-circle',text:'Source'},{href:'https://github.com/python1/knights-circle/blob/main/LICENSE',text:'License: AGPL-3.0'}]);
+    const found=links(part).filter(l=>/^https:\/\/(github\.com|buymeacoffee\.com)\//.test(l.href));
+    assert.deepEqual(found.map(({href,text})=>({href,text})),[{href:'https://github.com/python1/knights-circle',text:'Source'},{href:'https://github.com/python1/knights-circle/blob/main/LICENSE',text:'License: AGPL-3.0'},{href:'https://buymeacoffee.com/python1',text:'Support'}]);
     for(const l of found)assert.match(l.attrs,/target="_blank" rel="noopener noreferrer"/);}
+});
+test('a quiet Support link and nothing that nags: no pop-up, banner or dialog asks for money',()=>{
+  assert.equal((html.match(/buymeacoffee\.com/g)||[]).length,2,'only the two credit lines link to it');
+  for(const file of ['src/app.js','src/room-ui.js','src/agents-ui.js','src/dialog.js'])assert.doesNotMatch(readFileSync(new URL('../'+file,import.meta.url),'utf8'),/buymeacoffee|support this project|donat/i,file);
 });
 test('the links show once at each width: sidebar on desktop, page credit on phones',()=>{
   assert.match(css,/\.public-credit \.credit-links\{display:none\}/);
