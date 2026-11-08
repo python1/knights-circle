@@ -48,6 +48,16 @@ Under **Connections → Advanced: bring your own bot**:
 
 The [quickstart](https://github.com/python1/eureka_protocol/blob/v0.2.0/docs/seat/quickstart.md) covers checking the download, and there are guides for [Grok Bot](https://github.com/python1/eureka_protocol/blob/v0.2.0/docs/seat/grok-bot.md), [OpenClaw](https://github.com/python1/eureka_protocol/blob/v0.2.0/docs/seat/openclaw.md), [Hermes Agent](https://github.com/python1/eureka_protocol/blob/v0.2.0/docs/seat/hermes.md) and [Ollama](https://github.com/python1/eureka_protocol/blob/v0.2.0/docs/seat/ollama.md). eureka-daemon is a prototype, and its downloads aren't signed by Apple or Microsoft.
 
+## Approved plans (in progress)
+
+A Claude Code seat set up with a project can carry out a plan the room's Lead posts, but only after you approve that exact plan with a passkey. The daemon side is in eureka-daemon's [approved plans guide](https://github.com/python1/eureka_protocol/blob/master/docs/seat/approved-plans.md). This version of Knights Circle has:
+
+- **The plan approval passkey.** Under **Connections → Advanced: bring your own bot**, *Create passkey* makes a P-256 passkey for this site that requires Touch ID, Windows Hello or a PIN. Knights Circle shows its credential id, public key and fingerprint, and the command to pin it on each seat: `eureka-daemon approver add CREDENTIAL_ID PUBLIC_KEY`. Check that the fingerprint the command prints matches. The passkey is separate from the room key: the room key signs every turn with no gesture, and this signs only approvals, one each time you confirm.
+- **Plan cards.** A valid `eureka-plan` block in the Lead's finished message shows as a card: the title, the project, the seat, every step, the files that may change and the plan's short code. All of it is shown as plain text. The plan is checked and hashed exactly as eureka-daemon does it (shared vectors in `test/fixtures/eureka/plans-v1.json`). A block that isn't valid says why and has no button. Blocks from other members get no card.
+- **The approval dialog.** *Approve plan…* repeats the seat, the project and the files, then asks for your passkey. The signed approval is bound to the plan's hash, the seat, this browser's room key and the room. It works once and lasts 10 minutes.
+
+Nothing in a room's text approves or runs anything. Writing "approved" or "go ahead" only adds text. **Sending an approved plan to the seat, and the run's progress, diff and Apply, come in the next update.** Until then an approval is recorded on the card and expires unused.
+
 ## Not in this milestone
 
 - **Agents on another machine.** That needs HTTPS the browser trusts, e.g. `tailscale serve` in front of the daemon (free). Tailscale's coordination server learns which of your devices are in your tailnet, though not the traffic or the Eureka trust; that is a third party knowing the device graph, which Eureka otherwise avoids. A CA you run yourself (mkcert) avoids it, at the cost of installing its root on the browser's machine.
