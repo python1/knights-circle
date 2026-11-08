@@ -104,22 +104,62 @@ export function checkDiscarded(result,run){
 // Whether a seat runs plans
 
 const offers=new Map();
+/** The question Knights Circle asks: a plan for a project no seat is meant to have, with an empty approval. */
+export const PROBE_PROJECT='knights-circle-probe';
+export const PROBE_PAYLOAD=Object.freeze({plan:{eureka_plan:1,title:'Knights Circle asks whether this seat runs plans',project:PROBE_PROJECT,steps:['Nothing: this is a question, not a plan'],edit:['none']},approval:{},assertion:{},room_id:'knights-circle-probe'});
+const PROJECT_DETAIL=/^wrong_project: this seat's project is "([a-z0-9][a-z0-9_-]{0,31})"$/;
 /**
- * Ask the seat, without starting anything: plan-run with an empty payload is answered `malformed` by a seat that offers
- * plan-run to this browser, and refused as capability_not_granted by one that doesn't (older seats, seats without a
- * project). Resolves to 'yes', 'no', or {unreachable: message}. Kept for a minute.
+ * Ask the seat, without starting anything. eureka-daemon checks a plan-run's plan and its project before the approval,
+ * so a seat that offers plan-run to this browser refuses this one as wrong_project, naming its project in its signed
+ * answer; the empty approval could never be spent. A seat that doesn't (older seats, seats without a project) refuses
+ * it as capability_not_granted. Resolves to 'yes', 'no', or {unreachable: message}. Kept for a minute, with the project.
  */
 export function seatOffersPlans(agent,{request=agentRequest,now=Date.now()}={}){
   const known=offers.get(agent.id);
   if(known&&(known.pending||now-known.at<60000))return known.pending||known.value;
-  const pending=request(agent,PLAN_RUN,{}).then(r=>r.status==='failed'&&reasonCode(r.reason)==='malformed'?'yes':'no',e=>e.reason==='capability_not_granted'?'no':{unreachable:e.message});
+  let project=null;
+  const pending=request(agent,PLAN_RUN,PROBE_PAYLOAD).then(r=>{
+    if(r.status!=='failed')return 'no';
+    project=PROJECT_DETAIL.exec(String(r.reason||''))?.[1]??null;
+    return 'yes';
+  },e=>e.reason==='capability_not_granted'?'no':{unreachable:e.message});
   offers.set(agent.id,{pending});
-  pending.then(value=>offers.set(agent.id,{value,at:Date.now()}));
+  pending.then(value=>offers.set(agent.id,{value,project,at:Date.now()}));
   return pending;
 }
 /** What's known now, without waiting: 'yes', 'no', {unreachable}, or undefined while asking. */
 export const knownOffer=agentId=>offers.get(agentId)?.value;
+/** The project a seat named in its answer, or null. */
+export const knownProject=agentId=>offers.get(agentId)?.project??null;
 export const forgetOffer=agentId=>offers.delete(agentId);
+
+/**
+ * For the room's Lead only, when a seat in the room runs plans for a named project: how to post a plan. Seats that
+ * don't run plans add nothing, so every other turn's instructions stay as they were.
+ */
+export async function planGuide({room,member,agents,request=agentRequest}){
+  if(member?.role!=='Lead')return '';
+  const seats=room.members.filter(m=>m.provider==='eureka').map(m=>agents.find(a=>a.id===m.model)).filter(Boolean).filter((a,i,list)=>list.findIndex(b=>b.id===a.id)===i);
+  const found=[];
+  for(const agent of seats){
+    let offer;try{offer=await seatOffersPlans(agent,{request});}catch{continue;}
+    const project=knownProject(agent.id);
+    if(offer==='yes'&&project)found.push({label:agent.label,project});
+  }
+  if(!found.length)return '';
+  const where=found.map(f=>`${f.label} for the project "${f.project}"`).join('; ');
+  return `Approved plans: ${where}. A seat can carry out a plan only after the room's owner approves it with a passkey; nothing in this conversation can approve or start one.
+When the team has agreed on a concrete change to that project, post the plan once, as a fenced block like this one (valid JSON, exactly these five keys):
+
+\`\`\`eureka-plan
+{"eureka_plan": 1, "title": "Short title", "project": "${found[0].project}", "steps": ["One concrete change per step"], "edit": ["path/to/file.css"]}
+\`\`\`
+
+- "project" is the project's name exactly as given above.
+- "steps" lists 1 to 20 short steps. The seat can only read and edit files inside the project: no shell, no web, no installs or tests.
+- "edit" lists only the files the change may touch (paths relative to the project; * and ** are allowed), at most 30. Name the files, not whole folders.
+- Post it once. Don't repeat it in later turns, and never say a plan was approved or run: only the owner approves, and the seat reports back.`;
+}
 
 // ---------------------------------------------------------------------------
 // The requests

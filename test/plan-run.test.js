@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {signedBytes,verify,nodeIdOf,createIdentity,EurekaPeer} from '../src/eureka-client.js';
 import {readPlan} from '../src/plan.js';
-import {seatOffersPlans,forgetOffer,newRun,sendRun,fetchStatus,sendApply,sendDiscard,applyStatus,setState,summaryLine,savedPlans,planReport,isFailure,explain,PLAN_RUN,PLAN_STATUS,PLAN_APPLY,PLAN_DISCARD} from '../src/plan-run.js';
+import {seatOffersPlans,forgetOffer,knownProject,planGuide,PROBE_PAYLOAD,newRun,sendRun,fetchStatus,sendApply,sendDiscard,applyStatus,setState,summaryLine,savedPlans,planReport,isFailure,explain,PLAN_RUN,PLAN_STATUS,PLAN_APPLY,PLAN_DISCARD} from '../src/plan-run.js';
 import {snapshot} from '../src/memory.js';
 import {markdown} from '../src/export.js';
 
@@ -15,7 +15,7 @@ const DIFF='diff --git a/src/app.js b/src/app.js\n--- a/src/app.js\n+++ b/src/ap
 
 // A stand-in for a Claude Code seat with a project: the Eureka handshake, and plan-run/status/apply/discard answered as
 // eureka-daemon answers them, each result signed by the seat's key. `bad` switches make it misbehave.
-async function fakeSeat({offers=true,bad={}}={}){
+async function fakeSeat({offers=true,project='site',bad={}}={}){
   const pair=await crypto.subtle.generateKey({name:'Ed25519'},false,['sign','verify']),other=await crypto.subtle.generateKey({name:'Ed25519'},false,['sign','verify']);
   const publicKey=hex(await crypto.subtle.exportKey('raw',pair.publicKey)),nodeId=await nodeIdOf(publicKey);
   const sign=async(domain,p,key=pair)=>Buffer.from(await crypto.subtle.sign({name:'Ed25519'},key.privateKey,signedBytes(domain,p))).toString('base64');
@@ -25,6 +25,9 @@ async function fakeSeat({offers=true,bad={}}={}){
   async function handle(capability,p){
     if(capability===PLAN_RUN){
       if(!p.plan||!p.approval||!p.assertion||!p.room_id)return failed('malformed');
+      // eureka-daemon checks the plan and its project before the approval.
+      if(p.plan.project!==project)return failed(`wrong_project: this seat's project is "${project}"`);
+      if(!p.approval.plan_hash)return failed('bad_approval');
       if(bad.runRefused)return failed(bad.runRefused);
       state.run={run_id:'a1'.repeat(16),plan_hash:bad.otherPlan?'4'.repeat(64):p.approval.plan_hash,approval_id:p.approval.approval_id,room_id:p.room_id,status:'running',progress:[{seq:1,text:'Reading src/app.js'},{seq:2,text:'Editing src/app.js'}],polls:0};
       return done({run_id:state.run.run_id,status:'running',plan_hash:state.run.plan_hash});
@@ -88,7 +91,9 @@ const settle=async(seat,run,plan)=>{for(let i=0;i<5&&(run.status==='running'||ru
 test('the Approve button waits for the seat to say it runs plans; older seats and seats without a project say no',async()=>{
   const yes=await fakeSeat(),no=await fakeSeat({offers:false}),off=await fakeSeat({bad:{offline:true}});
   assert.equal(await seatOffersPlans(yes.agent,{request:yes.request}),'yes');
-  assert.deepEqual(yes.state.requests,[[PLAN_RUN,{}]],'the probe is an empty plan-run, which can’t start anything');
+  assert.deepEqual(yes.state.requests,[[PLAN_RUN,JSON.parse(JSON.stringify(PROBE_PAYLOAD))]],'the probe names another project and an empty approval, so it can’t start anything');
+  assert.deepEqual(PROBE_PAYLOAD.approval,{});assert.equal(yes.state.run,null);
+  assert.equal(knownProject(yes.agent.id),'site','the project comes from the seat’s signed answer');
   assert.equal(await seatOffersPlans(no.agent,{request:no.request}),'no');
   const unreachable=await seatOffersPlans(off.agent,{request:off.request});assert.ok(unreachable.unreachable);
   forgetOffer(yes.agent.id);
@@ -154,4 +159,33 @@ test('saved rooms and exports keep the approvals and reports, never the diff or 
   assert.match(md,/File src\/app\.js: \+1 −0/);assert.match(md,/Created by Paul Charydczak/);
   assert.doesNotMatch(md,/classList|Editing src/,'no diff and no progress line');
   assert.equal(planReport({plans:{}}).length,0);assert.doesNotMatch(markdown({...r,plans:undefined}),/Approved plans/);
+});
+
+test('the Lead is told how to post a plan only when a seat in the room runs plans, with the seat’s own project name',async()=>{
+  const yes=await fakeSeat({project:'plantest'}),no=await fakeSeat({offers:false}),off=await fakeSeat({bad:{offline:true}});
+  const seats=[yes,no,off],agents=seats.map(s=>s.agent),request=(a,c,p)=>seats.find(s=>s.agent.id===a.id).request(a,c,p);
+  const member=(id,role,provider='eureka')=>({id,role,provider,model:id});
+  const room=(...members)=>({id:'r',members});
+  const lead={...member(yes.agent.id,'Lead'),id:'m-lead'};
+  const guide=await planGuide({room:room(lead),member:lead,agents,request});
+  assert.match(guide,/^Approved plans: Claude for the project "plantest"\./);
+  assert.match(guide,/```eureka-plan\n\{"eureka_plan": 1, "title": "Short title", "project": "plantest", "steps": \[[^\]]+\], "edit": \["path\/to\/file\.css"\]\}\n```/);
+  assert.match(guide,/only the files the change may touch/);assert.match(guide,/Post it once/);assert.match(guide,/only the owner approves/);
+  const example=JSON.parse(guide.match(/```eureka-plan\n(.*)\n```/)[1]);
+  const {readPlan}=await import('../src/plan.js');assert.ok((await readPlan(JSON.stringify(example))).plan,'the example is itself a valid plan');
+  const critic=member(yes.agent.id,'Critic');
+  assert.equal(await planGuide({room:room(lead,critic),member:critic,agents,request}),'','only the Lead');
+  for(const s of [no,off]){const l={...member(s.agent.id,'Lead'),id:'l'};assert.equal(await planGuide({room:room(l),member:l,agents,request}),'','a seat that doesn’t run plans, or can’t be reached, adds nothing');}
+  const openai={id:'o',role:'Lead',provider:'openai',model:'gpt'};
+  assert.equal(await planGuide({room:room(openai),member:openai,agents,request}),'','a room without seats adds nothing');
+  const both=await planGuide({room:room(openai,member(yes.agent.id,'Critic')),member:openai,agents,request});
+  assert.match(both,/Claude for the project "plantest"/,'a Lead of any provider learns about a plan seat that is another member');
+});
+test('the plan guide goes after the Lead’s other instructions; with no guide the system prompt is exactly as before',async()=>{
+  const {RoomRunner}=await import('../src/rooms.js');
+  const run=async planGuideFor=>{const r={id:'r',name:'r',mode:'roundrobin',objective:'Add a dark mode toggle',turnCap:1,turn:0,status:'ready',messages:[],members:[{id:'a',role:'Lead',provider:'openai',model:'m',prompt:'Coordinate.'}]},seen=[];
+    await new RoomRunner(r,{keyFor:()=>'',generate:async function*({system}){seen.push(system);yield{text:'ok'};},...(planGuideFor?{planGuideFor}:{})}).run();return seen[0];};
+  const plain=await run();
+  assert.equal(await run(async()=>''),plain);
+  assert.equal(await run(async({member})=>member.role==='Lead'?'GUIDE':''),plain+'\n\nGUIDE');
 });

@@ -7,6 +7,8 @@ import {makeApproval,signApproval,passkeyProblem,offerOptions,PASSKEY_OPTIONS,LI
 import {openModal} from './dialog.js';
 import {roomIdentity} from './agents.js';
 import {seatOffersPlans,knownOffer,forgetOffer,newRun,sendRun,fetchStatus,sendApply,sendDiscard,setState,applyStatus,explain,isFailure,summaryLine,ACTIVE,POLL_MS} from './plan-run.js';
+// The Lead's instructions for posting a plan, passed through for the room screen (which never sends a run itself).
+export {planGuide} from './plan-run.js';
 
 const results=new Map();
 /** The checked plans in a message, or null while they're being hashed (onReady runs once they are). Cached by block text. */

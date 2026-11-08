@@ -14,7 +14,7 @@ export function validateRoom(room){if(!room.members.length)throw new Error('Add 
 export function continueRoom(room,more){if(!Number.isInteger(more)||more<1)throw new Error('Enter a whole number of extra turns, 1 or more.');if(room.turn+more>1000)throw new Error('A room can run at most 1,000 turns.');room.turnCap=room.turn+more;if(room.status==='complete')room.status='paused';room.notice='';}
 export function transcriptFor(room){return room.messages.filter(m=>m.text&&m.status!=='error').map(m=>({role:'user',content:`[${m.speaker}${m.status==='interrupted'?' — interrupted, incomplete':''}]\n${m.text}`}));}
 export class RoomRunner{
- constructor(room,{generate,keyFor,onChange=()=>{},beforeTurn=async()=>{},afterTurn=async()=>{},beforeRequest=async()=>{},memoryFor=async()=>''}){this.room=room;this.generate=generate;this.keyFor=keyFor;this.onChange=onChange;this.beforeTurn=beforeTurn;this.afterTurn=afterTurn;this.beforeRequest=beforeRequest;this.memoryFor=memoryFor;this.active=false;this.controller=null;this.nextId=null;this.retryId=null;}
+ constructor(room,{generate,keyFor,onChange=()=>{},beforeTurn=async()=>{},afterTurn=async()=>{},beforeRequest=async()=>{},memoryFor=async()=>'',planGuideFor=async()=>''}){this.room=room;this.generate=generate;this.keyFor=keyFor;this.onChange=onChange;this.beforeTurn=beforeTurn;this.afterTurn=afterTurn;this.beforeRequest=beforeRequest;this.memoryFor=memoryFor;this.planGuideFor=planGuideFor;this.active=false;this.controller=null;this.nextId=null;this.retryId=null;}
  emit(){this.onChange(this.room);}
  pause(){this.room.status='paused';this.controller?.abort();this.emit();}
  redirect(text){if(!text.trim())return;this.pause();this.room.messages.push({id:crypto.randomUUID(),speaker:'You',text:text.trim(),status:'complete',at:Date.now()});this.emit();}
@@ -34,6 +34,8 @@ export class RoomRunner{
  if(r.mode==='debate'&&r.turn===r.turnCap-1)system+='\nThis is the final synthesis. State conclusions, disagreements, and unresolved questions.';
  // Verified Memory (optional): verified records and unverified proposals, in separate labelled sections.
  const memory=await this.memoryFor({room:r,member});if(memory)system+=`\n\n${memory}`;
+ // Approved plans: the plan block's format, for the Lead only, when a seat in the room runs plans.
+ const guide=await this.planGuideFor({room:r,member});if(guide)system+=`\n\n${guide}`;
  const messages=[{role:'user',content:r.objective},...transcriptFor(r)];
  const reservation=await this.beforeTurn({room:r,member,system,messages});if(r.status!=='running')break;
  const reply={id:crypto.randomUUID(),memberId:member.id,speaker:`${member.role} · ${member.label||member.model}`,text:'',status:'streaming',at:Date.now(),usage:{}};r.messages.push(reply);r.turn++;this.controller=new AbortController();this.emit();
