@@ -81,5 +81,7 @@ test('plan text reaches the page as text only, and the card is the only way to a
   assert.equal(ui.match(/innerHTML/g).length,1,'only the dialog’s fixed skeleton');
   assert.doesNotMatch(ui.slice(ui.indexOf('export function planCards')),/innerHTML/);
   assert.match(room,/article\.append\(\.\.\.planCards\(m,planContext\)\)/);
-  assert.equal((room.match(/askApproval\(/g)||[]).length,1,'approval starts only from the card’s button');
+  assert.doesNotMatch(room,/askApproval|plan-run\.js/,'the room screen only shows cards and notes');
+  assert.equal((ui.match(/await askApproval\(/g)||[]).length,2,'approvals start only from the card’s Approve and Apply buttons');
+  assert.match(ui,/approve\.onclick=\(\)=>approveAndRun\(/);assert.match(ui,/apply\.onclick=\(\)=>applyRun\(/);
 });

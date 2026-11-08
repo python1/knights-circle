@@ -109,5 +109,18 @@ test('the approver is kept as public data in this browser, and a cancelled promp
 test('the passkey is not the room key: the room key still signs only Eureka request domains',()=>{
   const client=readFileSync(new URL('../src/eureka-client.js',import.meta.url),'utf8');
   assert.match(client,/const SIGNABLE = new Set\(\['handshake_offer', 'handshake_confirm', 'read_query', 'assign_query'\]\);/);
-  assert.doesNotMatch(client,/plan/);
+  assert.match(client,/handshake_offer: 'eureka\/handshake\/offer\/v1',\n  handshake: 'eureka\/handshake\/v1',\n  handshake_confirm: 'eureka\/handshake\/confirm\/v1',\n  read_query: 'eureka\/read\/query\/v1',\n  assign_query: 'eureka\/assign\/query\/v1',\n  assign_result: 'eureka\/assign\/result\/v1'\n\}\);/,'no new signing domains');
+  assert.doesNotMatch(client,/approval/i,'the room key never signs an approval');
+});
+test('without Touch ID the owner is offered a device PIN or password, a phone by QR code, or a security key',async()=>{
+  const {PASSKEY_OPTIONS,offerOptions,passkeySupport}=await import('../src/passkey.js');
+  assert.equal(PASSKEY_OPTIONS.length,3);
+  assert.match(PASSKEY_OPTIONS[0],/PIN or password/);assert.match(PASSKEY_OPTIONS[1],/phone.*QR code/);assert.match(PASSKEY_OPTIONS[2],/security key.*PIN/);
+  for(const name of ['NotAllowedError','NotSupportedError','SecurityError'])assert.ok(offerOptions({name}),name);
+  assert.ok(offerOptions(new Error('The authenticator didn’t verify you')));assert.ok(!offerOptions(new Error('the plan hash must be 64 lower-case hex digits')));
+  assert.deepEqual(await passkeySupport(undefined),{supported:false,builtIn:false});
+  const html=readFileSync(new URL('../index.html',import.meta.url),'utf8'),ui=readFileSync(new URL('../src/plan-ui.js',import.meta.url),'utf8'),help=readFileSync(new URL('../docs/external-agents.md',import.meta.url),'utf8');
+  assert.match(html,/<details id="approver-help" class="approver-help"><summary>No Touch ID\? Other ways to approve<\/summary>/);
+  assert.match(ui,/options\.hidden=!offerOptions\(e\)/,'the approval dialog shows them when the passkey fails');
+  assert.match(help,/### No Touch ID\? Other ways to approve[\s\S]*PIN or password[\s\S]*scan the QR code[\s\S]*security key/);
 });
