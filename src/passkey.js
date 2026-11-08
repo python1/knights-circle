@@ -31,9 +31,24 @@ export function loadApprover(storage=globalThis.localStorage){
 export const saveApprover=(approver,storage=globalThis.localStorage)=>storage.setItem(approverKey,JSON.stringify(approver));
 export const forgetApprover=(storage=globalThis.localStorage)=>storage.removeItem(approverKey);
 
+/** The ways to approve when Touch ID isn't there. eureka-daemon needs the user verified, so each one asks for a PIN, a password or a fingerprint. */
+export const PASSKEY_OPTIONS=Object.freeze([
+  'This device’s PIN or password: Windows Hello, or your Mac’s login password if Touch ID isn’t set up.',
+  'Your phone: in the passkey prompt choose “Use a phone or tablet” (or “Other options”), scan the QR code with the phone and approve there. Bluetooth must be on for both. The passkey then lives on the phone, which you use for every approval.',
+  'A security key, such as a YubiKey, with a PIN set. A key without a PIN can’t verify you, so the seat would refuse its approvals.',
+]);
+/** Whether this browser can make and use passkeys, and whether it has one built in (Touch ID, Windows Hello). */
+export async function passkeySupport(pkc=globalThis.PublicKeyCredential){
+  if(!pkc||!globalThis.navigator?.credentials?.create)return {supported:false,builtIn:false};
+  let builtIn=false;try{builtIn=!!await pkc.isUserVerifyingPlatformAuthenticatorAvailable?.();}catch{}
+  return {supported:true,builtIn};
+}
+/** A failure that the options above can get around (as opposed to a mistake on the page). */
+export const offerOptions=e=>['NotAllowedError','NotSupportedError','SecurityError','AbortError','InvalidStateError'].includes(e?.name)||/verify you|doesn’t support passkeys|isn’t P-256/.test(e?.message||'');
+
 /** Why a passkey request failed, in words the owner can act on. */
 export function passkeyProblem(e){
-  if(e?.name==='NotAllowedError')return 'The passkey request was cancelled or timed out. Nothing was signed.';
+  if(e?.name==='NotAllowedError')return 'The passkey request was cancelled, timed out, or this device has no passkey that can verify you. Nothing was signed.';
   if(e?.name==='InvalidStateError')return 'This authenticator already holds a plan approval passkey for this site.';
   if(e?.name==='SecurityError')return 'This page can’t use passkeys here. Open Knights Circle over https (or on localhost).';
   if(e?.name==='NotSupportedError')return 'This browser or authenticator can’t make a P-256 passkey that verifies you (Touch ID, Windows Hello or a PIN).';

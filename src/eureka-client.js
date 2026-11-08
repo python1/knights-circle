@@ -175,6 +175,31 @@ export class EurekaPeer {
   }
 }
 
+/**
+ * Any capability other than room-turn (approved plans): the agent's signed result, completed or failed, accepted only
+ * if it is signed by the pinned key and bound to this request (nonce, requester, responder, capability). Room turns
+ * keep their own path above, unchanged.
+ */
+EurekaPeer.prototype.request = async function request(capability, payload, signal) {
+  if (capability === ROOM_TURN) throw new Error('room turns go through turn()');
+  if (!this.shaken) await this.handshake(signal);
+  let answer = await askCapability(this, capability, payload, signal);
+  if (answer.reason === 'not_authenticated') { await this.handshake(signal); answer = await askCapability(this, capability, payload, signal); }
+  if (answer.result) return answer.result;
+  throw new EurekaError('refused', answer.reason, refusal(answer.reason));
+};
+async function askCapability(peer, capability, payload, signal) {
+  const me = peer.identity;
+  const query = {protocol: PROTOCOL, event: 'assign_query', requester_id: me.nodeId, timestamp: now(), nonce: nonce(), capability, task_name: 'knights-circle-plan', payload};
+  const answer = await peer.post('/v1/assign', {event: 'assign_query', requester_id: me.nodeId, public_key: me.publicKey, query, signature: await me.sign('assign_query', query)}, signal);
+  if (answer?.event !== 'assign_answer') return {reason: answer?.reason || 'malformed'};
+  const result = answer.result;
+  const bound = result && result.nonce === query.nonce && result.requester_id === me.nodeId && result.responder_id === peer.peerId && result.capability === capability
+    && answer.responder_id === peer.peerId && await verify(peer.publicKey, answer.result_signature, 'assign_result', result);
+  if (!bound) throw new EurekaError('refused', 'bad_result', 'The agent’s answer was not signed by its pinned key for this request, so it was discarded.');
+  return {result: {status: result.status, reason: result.reason, output: result.output, taskId: result.task_id, signature: answer.result_signature}};
+}
+
 const REFUSALS = {
   untrusted_key: 'The agent doesn’t trust this browser’s room key. On the agent’s computer, run eureka-daemon stop, then eureka-daemon setup again, and paste this browser’s room key from Connections → Advanced: bring your own bot. Then run eureka-daemon start. Advanced users can run eureka-daemon trust add with the room-turn grant instead, then restart the daemon.',
   revoked_key: 'The agent has revoked this browser’s room key.',

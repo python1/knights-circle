@@ -54,6 +54,8 @@ let identity=null;
 export const roomIdentity=()=>identity??=createIdentity().catch(e=>{identity=null;throw e;});
 const peers=new Map();
 function peerFor(agent){const key=`${agent.url} ${agent.publicKey}`;if(!peers.has(key))peers.set(key,roomIdentity().then(id=>new EurekaPeer({url:agent.url,publicKey:agent.publicKey,identity:id})));return peers.get(key);}
+/** One approved-plan request to an agent: its signed result, or an error the room can show. Never a room turn. */
+export async function agentRequest(agent,capability,payload,{signal=AbortSignal.timeout(30000),peer=peerFor}={}){try{return await (await peer(agent)).request(capability,payload,signal);}catch(e){throw e instanceof EurekaError&&e.kind==='network'?new Error(await explainUnreachable(agent)):e;}}
 /** Handshake only: used by "Check" in the allowlist. */
 export async function checkAgent(agent){try{const peer=await peerFor(agent);return await peer.handshake(AbortSignal.timeout(15000));}catch(e){throw e instanceof EurekaError&&e.kind==='network'?new Error(await explainUnreachable(agent)):e;}}
 
