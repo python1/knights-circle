@@ -48,6 +48,31 @@ Under **Connections → Advanced: bring your own bot**:
 
 The [quickstart](https://github.com/python1/eureka_protocol/blob/v0.2.0/docs/seat/quickstart.md) covers checking the download, and there are guides for [Grok Bot](https://github.com/python1/eureka_protocol/blob/v0.2.0/docs/seat/grok-bot.md), [OpenClaw](https://github.com/python1/eureka_protocol/blob/v0.2.0/docs/seat/openclaw.md), [Hermes Agent](https://github.com/python1/eureka_protocol/blob/v0.2.0/docs/seat/hermes.md) and [Ollama](https://github.com/python1/eureka_protocol/blob/v0.2.0/docs/seat/ollama.md). eureka-daemon is a prototype, and its downloads aren't signed by Apple or Microsoft.
 
+## Approved plans
+
+A Claude Code seat set up with a project can carry out a plan the room's Lead posts, but only after you approve that exact plan with a passkey. Its changes reach your project only after a second approval, and then as a new branch. The seat side is in eureka-daemon's [approved plans guide](https://github.com/python1/eureka_protocol/blob/master/docs/seat/approved-plans.md).
+
+1. **Create the plan approval passkey** under **Connections → Advanced: bring your own bot**. Knights Circle shows its credential id, public key and fingerprint, and the command to pin it on each seat: `eureka-daemon approver add CREDENTIAL_ID PUBLIC_KEY`. Check that the fingerprint the command prints matches. The passkey is separate from the room key: the room key signs every turn with no gesture, while the passkey signs only approvals, one each time you confirm.
+2. **A plan card.** A valid `eureka-plan` block in the Lead's finished message shows as a card: the title, project, every step, the files that may change and the plan's short code, all as plain text. A block that isn't valid says why. Blocks from other members get no card.
+3. **Approve.** The button shows only when the room's seat says it runs plans. Knights Circle asks it first, in a way that can't start anything. Older seats (v0.2.0), seats without a project and seats that don't trust this browser with plans get a note instead. The dialog repeats the seat, project and files, then asks for your passkey. The approval is bound to the plan's hash, the seat, this browser's room key and the room. It works once, for 10 minutes, and is sent to the seat at once.
+4. **Running.** The card shows the seat's progress, such as *Editing src/theme.css*: tool names and paths only.
+5. **Diff ready.** The card shows Claude Code's summary, the files with lines added and removed, and the diff. Knights Circle checks the diff against the hash the seat signed. **Apply to branch** asks for your passkey again, for this run, this diff and the commit it was made from. The diff then goes on a new branch, `eureka/plan-<code>`, and your checkout isn't touched. **Discard** throws the diff away.
+6. **Applied**, or **Failed** with the reason, such as the project having moved on, an existing branch, or a change outside the plan.
+
+Knights Circle shows only what the seat signed with its pinned key, for this plan, this run and this room. Anything else is discarded. Each state change adds a note from Knights Circle to the transcript, holding only the one-line summary. The diff, the files and the progress line stay on the card. The room's members never get them: their turns are built exactly as before, from members' messages only. Markdown and print exports list the approvals and the reports, but not the diff.
+
+Nothing in a room's text approves or runs anything. Writing "approved" or "go ahead" only adds text.
+
+### No Touch ID? Other ways to approve
+
+The seat needs to know it was you, so the passkey must verify you with a PIN, a password or a fingerprint. If this device has no Touch ID, or the passkey prompt fails, you can use:
+
+- **This device's PIN or password:** Windows Hello, or your Mac's login password if Touch ID isn't set up.
+- **Your phone:** in the passkey prompt choose *Use a phone or tablet* (or *Other options*), scan the QR code with the phone and approve there. Bluetooth must be on for both. The passkey then lives on the phone, which you use for every approval.
+- **A security key**, such as a YubiKey, with a PIN set. A key without a PIN can't verify you, so the seat would refuse its approvals.
+
+Knights Circle shows these options when a passkey can't be created or used. A browser without passkey support can't approve plans: use a current Chrome, Edge, Safari or Firefox.
+
 ## Not in this milestone
 
 - **Agents on another machine.** That needs HTTPS the browser trusts, e.g. `tailscale serve` in front of the daemon (free). Tailscale's coordination server learns which of your devices are in your tailnet, though not the traffic or the Eureka trust; that is a third party knowing the device graph, which Eureka otherwise avoids. A CA you run yourself (mkcert) avoids it, at the cost of installing its root on the browser's machine.
