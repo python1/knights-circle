@@ -195,6 +195,7 @@ When the team has agreed on a concrete change to that project, post the plan onc
 - "steps" lists 1 to 20 short steps. The seat can only read and edit files inside the project: no shell, no web, no installs or tests.
 - "edit" lists only the files the change may touch, at most 30, using the exact paths you were given (relative to the project; * and ** are allowed). Name the files, not whole folders, and don't guess a path.
 - Post it once. Don't repeat it in later turns, and never say a plan was approved or run: only the owner approves, and the seat reports back.
+- If the discussion changes the plan, post an updated plan card; the seat runs only the plan card.
 
 ${found.map(fileNote).join('\n\n')}`;
 }
