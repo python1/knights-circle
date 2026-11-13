@@ -85,3 +85,40 @@ test('plan text reaches the page as text only, and the card is the only way to a
   assert.equal((ui.match(/await askApproval\(/g)||[]).length,2,'approvals start only from the card’s Approve and Apply buttons');
   assert.match(ui,/approve\.onclick=\(\)=>approveAndRun\(/);assert.match(ui,/apply\.onclick=\(\)=>applyRun\(/);
 });
+
+test('roomRunsPlans says yes only for a seat known to run plans, and asks the others without waiting',async()=>{
+  const {roomRunsPlans}=await import('../src/plan-ui.js');const {forgetOffer}=await import('../src/plan-run.js');
+  const agents=[{id:'s1',label:'Claude',nodeId:'node_1'},{id:'s2',label:'Bot',nodeId:'node_2'}];
+  const asked=[];const request=async(agent,capability)=>{asked.push([agent.id,capability]);if(agent.id==='s1')return {status:'completed',output:{project:'site',files_shared:false}};const e=new Error('no');e.reason='capability_not_granted';throw e;};
+  const room={members:[{id:'m',provider:'eureka',model:'s2',role:'Critic'},{id:'o',provider:'openai',model:'gpt',role:'Lead'}]};
+  let told=0;
+  assert.equal(roomRunsPlans(room,agents,{request,onKnown:()=>told++}),false,'unknown yet');
+  assert.equal(roomRunsPlans(room,agents,{extra:[agents[0]],request,onKnown:()=>told++}),false);
+  await new Promise(r=>setTimeout(r,20));
+  assert.equal(told,1,'told once, when the seat about to join said yes');
+  assert.equal(roomRunsPlans(room,agents,{request}),false,'the Bot in the room doesn’t run plans');
+  assert.equal(roomRunsPlans(room,agents,{extra:[agents[0]],request}),true);
+  assert.equal(roomRunsPlans({members:[{id:'x',provider:'eureka',model:'s1',role:'Lead'}]},agents,{request}),true);
+  forgetOffer('s1');forgetOffer('s2');
+});
+
+test('one plan at a time: only the newest valid plan for a project keeps its Approve button',async()=>{
+  const {latestPlans,planCardId}=await import('../src/plan-ui.js');
+  const block=(project,title)=>'```eureka-plan\n'+JSON.stringify({eureka_plan:1,title,project,steps:['Change it'],edit:['src/theme.css']})+'\n```';
+  const room={members:[{id:'lead',role:'Lead'},{id:'c',role:'Critic'}],messages:[
+    {id:'m1',memberId:'lead',status:'complete',text:block('site','First')},
+    {id:'m2',memberId:'lead',status:'complete',text:block('other','Other project')},
+    {id:'m3',memberId:'lead',status:'complete',text:`${block('site','Second')}\n\n${block('site','Third')}`},
+    {id:'m4',memberId:'c',status:'complete',text:block('site','A critic’s plan gets no card')},
+    {id:'m5',memberId:'lead',status:'complete',text:'```eureka-plan\n{"eureka_plan":1,"title":"Not valid","project":"site"}\n```'},
+    {id:'m6',memberId:'lead',status:'streaming',text:block('site','Still being written')}]};
+  latestPlans(room);await new Promise(r=>setTimeout(r,30));
+  const latest=latestPlans(room);
+  assert.deepEqual(latest.get('site'),{messageId:'m3',index:1},'the later block of the newest Lead message; not the critic, an invalid plan or a streaming message');
+  assert.deepEqual(latest.get('other'),{messageId:'m2',index:0},'another project (another seat) is left alone');
+  assert.equal(planCardId('m3',1),'plan-m3-1');
+  const ui=readFileSync(new URL('../src/plan-ui.js',import.meta.url),'utf8'),cards=ui.slice(ui.indexOf('export function planCards'));
+  const branch=cards.slice(cards.indexOf('if(!runs.length&&newest&&(newest.messageId!==message.id||newest.index!==index))'),cards.indexOf('else if(!seats.length)'));
+  assert.ok(branch.length>0&&branch.includes("'Replaced by a newer plan.'")&&branch.includes("'Jump to latest plan'"),'a replaced card shows the note and the link');
+  assert.doesNotMatch(branch,/approveAndRun|seatChoice|button\(/,'instead of the seat choice and Approve');
+});

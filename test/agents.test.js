@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {validateAgent,addAgent,loadAgents,saveAgents,agentsKey,buildTurn,describeSent,defaultGrants,explainUnreachable,agentTurn,TURN_LIMITS} from '../src/agents.js';
+import {validateAgent,addAgent,loadAgents,saveAgents,agentsKey,buildTurn,describeSent,defaultGrants,explainUnreachable,agentTurn,turnGrants,TURN_LIMITS} from '../src/agents.js';
 import {EurekaError} from '../src/eureka-client.js';
 import {RoomRunner} from '../src/rooms.js';
 import {snapshot} from '../src/memory.js';
@@ -73,4 +73,22 @@ test('the room records what an agent was sent and its provenance, labels it, and
   const reply=room.messages[0];assert.equal(reply.speaker,'Critic · Garden · external agent node_12345678');assert.equal(reply.provenance.kind,'eureka');assert.equal(reply.sent.to,'Garden');
   const saved=snapshot(room);assert.deepEqual(saved.members[0].grants,{transcript:'last1',memory:false,propose:false});assert.equal(saved.members[0].label,room.members[0].label);
   assert.equal(saved.messages[0].provenance.nodeId,'node_12345678');assert.equal(saved.messages[0].sent.to,'Garden');
+});
+
+test('a Lead left at the default sees the full transcript while a seat in the room runs plans; the owner’s pick always wins',async()=>{
+  const lead={role:'Lead',grants:defaultGrants()};
+  assert.equal(turnGrants(lead,{planSeat:true}).transcript,'all');
+  assert.equal(turnGrants(lead,{planSeat:false}),lead.grants,'no plan seat: exactly as before');
+  assert.equal(turnGrants({role:'Critic',grants:defaultGrants()},{planSeat:true}).transcript,'last1','only the Lead');
+  assert.equal(turnGrants({role:'Lead'},{planSeat:true}).transcript,'all','an older member with no grants saved');
+  const picked={role:'Lead',grants:{...defaultGrants(),transcript:'last4',transcriptSet:true}};
+  assert.equal(turnGrants(picked,{planSeat:true}).transcript,'last4','the owner picked it');
+  const chosenDefault={role:'Lead',grants:{...defaultGrants(),transcriptSet:true}};
+  assert.equal(turnGrants(chosenDefault,{planSeat:true}).transcript,'last1','even when the pick is the default');
+  const agents=[{id:'a1',label:'Claude',url:'http://127.0.0.1:8769',publicKey:KEY,nodeId:'node_12345678'}];
+  let asked;const peer=async()=>({turn:async payload=>{asked=payload;return {text:'ok',model:'m',truncated:false,taskId:'t',nonce:'n',signature:'s',peerId:'node_12345678'};}});
+  const member={provider:'eureka',model:'a1',role:'Lead',grants:defaultGrants()},messages=[{role:'user',content:'Objective'},...Array.from({length:5},(_,i)=>({role:'user',content:`m${i}`}))];
+  const sentWith=async planSeat=>{const events=[];for await(const e of agentTurn({member,system:'S',messages,planSeat},{agents,peer}))events.push(e);return {sent:events[0].sent,count:asked.messages.length};};
+  assert.deepEqual(await sentWith(true).then(r=>[r.sent.messages,r.sent.of,r.count]),[5,5,7],'system, objective and all five messages');
+  assert.deepEqual(await sentWith(false).then(r=>[r.sent.messages,r.count]),[1,3]);
 });
