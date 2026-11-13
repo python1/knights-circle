@@ -175,7 +175,8 @@ test('the Lead is told how to post a plan only when a seat in the room runs plan
   const guide=await planGuide({room:room(lead),member:lead,agents,request});
   assert.match(guide,/^Approved plans: Claude for the project "plantest"\./);
   assert.match(guide,/```eureka-plan\n\{"eureka_plan": 1, "title": "Short title", "project": "plantest", "steps": \[[^\]]+\], "edit": \["path\/to\/file\.css"\]\}\n```/);
-  assert.match(guide,/only the files the change may touch/);assert.match(guide,/Post it once/);assert.match(guide,/only the owner approves/);
+  assert.match(guide,/only the files the change may touch/);assert.match(guide,/Post it once/);
+  assert.match(guide,/\n- If the discussion changes the plan, post an updated plan card; the seat runs only the plan card\.\n/);assert.match(guide,/only the owner approves/);
   const example=JSON.parse(guide.match(/```eureka-plan\n(.*)\n```/)[1]);
   const {readPlan}=await import('../src/plan.js');assert.ok((await readPlan(JSON.stringify(example))).plan,'the example is itself a valid plan');
   const critic=member(yes.agent.id,'Critic');
