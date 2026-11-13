@@ -19,6 +19,23 @@ export function plansIn(text,onReady){
   return blocks.map(b=>results.get(b));
 }
 
+/** The element id of a message's plan card, by its place among the message's plans. */
+export const planCardId=(messageId,index)=>`plan-${messageId}-${index}`;
+
+/**
+ * One plan at a time: for each project (a seat has exactly one, so this is per seat), where the newest valid plan the
+ * Lead posted is, as {messageId, index}. Plans still being hashed are left out; their message redraws once checked.
+ */
+export function latestPlans(room,refresh=()=>{}){
+  const latest=new Map();
+  for(const m of room.messages||[]){
+    if(!isLeadMessage(m,room))continue;
+    const found=plansIn(m.text,refresh);if(!found)continue;
+    found.forEach((r,index)=>{if(r.plan)latest.set(r.plan.project,{messageId:m.id,index});});
+  }
+  return latest;
+}
+
 /** Only the Lead's finished messages get cards. */
 export function isLeadMessage(message,room){return message.status==='complete'&&room.members.find(m=>m.id===message.memberId)?.role==='Lead';}
 
@@ -239,8 +256,9 @@ export function planCards(message,ctx){
   const {room}=ctx;if(!isLeadMessage(message,room))return [];
   const found=plansIn(message.text,ctx.refresh);
   if(!found)return found===null&&planBlocks(message.text).length?[el('p','subtle plan-checking','Checking a plan…')]:[];
-  return found.map(r=>{
-    const card=el('section','plan-card');card.setAttribute('aria-label','Plan');
+  const latest=ctx.latest??=latestPlans(room,ctx.refresh);
+  return found.map((r,index)=>{
+    const card=el('section','plan-card');card.setAttribute('aria-label','Plan');card.id=planCardId(message.id,index);
     if(r.error){card.classList.add('is-invalid');card.append(el('span','eyebrow','PLAN · NOT VALID'),el('p','',`This plan can’t be approved: ${r.error.detail} (${r.error.code}).`));return card;}
     const plan=r.plan,seats=seatsIn(room,ctx.agents),runs=runsFor(room,message,plan);
     const heading=el('div','plan-heading');heading.append(el('span','eyebrow',`PLAN · ${plan.code}`),el('h3','',plan.title));
@@ -249,8 +267,15 @@ export function planCards(message,ctx){
     card.append(heading,el('p','subtle',`Project ${plan.project}`),el('p','subtle','Steps'),steps,el('p','subtle','Files that may change'),files,el('p','plan-note',othersNote(room)));
     for(const run of runs){if(run.status==='sending'&&!sending.has(run.approval.approval_id))setState(run,'interrupted',{reason:'interrupted'});card.append(runSection(run,ctx));watch(run,ctx);}
     const busy=runs.some(x=>ACTIVE.has(x.status)||x.status==='diff_ready');
-    const actions=el('div','actions');
-    if(!seats.length)actions.append(el('p','subtle','No external agent in this room can run it. A Claude Code seat with a project can.'));
+    const actions=el('div','actions'),newest=latest.get(plan.project);
+    if(!runs.length&&newest&&(newest.messageId!==message.id||newest.index!==index)){
+      // A newer plan for the same project, so the same seat: this one is never approved. Cards with runs keep them.
+      card.classList.add('is-replaced');
+      const jump=el('a','plan-jump','Jump to latest plan');jump.href=`#${planCardId(newest.messageId,newest.index)}`;
+      jump.onclick=e=>{e.preventDefault();const target=document.getElementById(planCardId(newest.messageId,newest.index));if(!target)return;target.tabIndex=-1;target.scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});target.focus({preventScroll:true});};
+      actions.append(el('p','plan-replaced','Replaced by a newer plan.'),jump);
+    }
+    else if(!seats.length)actions.append(el('p','subtle','No external agent in this room can run it. A Claude Code seat with a project can.'));
     else if(!busy){
       const {ready,notes}=seatChoice(seats,ctx);actions.append(...notes);
       if(ready.length&&!ctx.approver)actions.append(el('p','subtle','To approve plans, create a plan approval passkey in Connections → Advanced: bring your own bot.'));
