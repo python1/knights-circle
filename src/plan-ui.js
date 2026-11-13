@@ -27,6 +27,21 @@ export function seatsIn(room,agents){
   return room.members.filter(m=>m.provider==='eureka').map(m=>agents.find(a=>a.id===m.model)).filter(Boolean).filter((a,i,list)=>list.findIndex(b=>b.id===a.id)===i).map(a=>({id:a.id,label:a.label,nodeId:a.nodeId}));
 }
 
+/**
+ * Whether a seat in the room (or one of `extra`, an agent about to join) is known to run plans, without waiting. Seats
+ * not asked yet are asked; onKnown runs when one of them says yes.
+ */
+export function roomRunsPlans(room,agents,{extra=[],request,onKnown=()=>{}}={}){
+  const list=[...seatsIn(room,agents).map(s=>agents.find(a=>a.id===s.id)),...extra].filter(Boolean);
+  let yes=false;
+  for(const agent of list){
+    const known=knownOffer(agent.id);
+    if(known==='yes')yes=true;
+    else if(known===undefined)seatOffersPlans(agent,{request}).then(v=>{if(v==='yes')onKnown();},()=>{});
+  }
+  return yes;
+}
+
 export const othersNote=room=>{const n=Math.max(0,room.members.length-1);return n?`Written in a room with ${n} other member${n===1?'':'s'}. Read every step.`:'Read every step.';};
 
 /** What the dialog asks, for a run or an apply. Plain strings: the caller puts them in as text. */

@@ -85,3 +85,19 @@ test('plan text reaches the page as text only, and the card is the only way to a
   assert.equal((ui.match(/await askApproval\(/g)||[]).length,2,'approvals start only from the card’s Approve and Apply buttons');
   assert.match(ui,/approve\.onclick=\(\)=>approveAndRun\(/);assert.match(ui,/apply\.onclick=\(\)=>applyRun\(/);
 });
+
+test('roomRunsPlans says yes only for a seat known to run plans, and asks the others without waiting',async()=>{
+  const {roomRunsPlans}=await import('../src/plan-ui.js');const {forgetOffer}=await import('../src/plan-run.js');
+  const agents=[{id:'s1',label:'Claude',nodeId:'node_1'},{id:'s2',label:'Bot',nodeId:'node_2'}];
+  const asked=[];const request=async(agent,capability)=>{asked.push([agent.id,capability]);if(agent.id==='s1')return {status:'completed',output:{project:'site',files_shared:false}};const e=new Error('no');e.reason='capability_not_granted';throw e;};
+  const room={members:[{id:'m',provider:'eureka',model:'s2',role:'Critic'},{id:'o',provider:'openai',model:'gpt',role:'Lead'}]};
+  let told=0;
+  assert.equal(roomRunsPlans(room,agents,{request,onKnown:()=>told++}),false,'unknown yet');
+  assert.equal(roomRunsPlans(room,agents,{extra:[agents[0]],request,onKnown:()=>told++}),false);
+  await new Promise(r=>setTimeout(r,20));
+  assert.equal(told,1,'told once, when the seat about to join said yes');
+  assert.equal(roomRunsPlans(room,agents,{request}),false,'the Bot in the room doesn’t run plans');
+  assert.equal(roomRunsPlans(room,agents,{extra:[agents[0]],request}),true);
+  assert.equal(roomRunsPlans({members:[{id:'x',provider:'eureka',model:'s1',role:'Lead'}]},agents,{request}),true);
+  forgetOffer('s1');forgetOffer('s2');
+});

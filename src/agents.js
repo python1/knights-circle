@@ -10,6 +10,15 @@ export const TURN_LIMITS={messages:200,chars:48000};
 export const transcriptGrants=[['objective','Objective only'],['last1','Objective and the latest message'],['last4','Objective and the last 4 messages'],['all','The full transcript']];
 // Minimum by default: enough to answer the latest message, nothing from Verified Memory, no memory proposals.
 export const defaultGrants=()=>({transcript:'last1',memory:false,propose:false});
+/**
+ * The grants one turn uses. A plan needs the whole discussion, so a Lead whose transcript the owner left at the default
+ * sees the full transcript while a seat in the room runs plans. Once the owner picks a transcript (transcriptSet), that
+ * choice is used as it is.
+ */
+export function turnGrants(member,{planSeat=false}={}){
+  const g=member.grants||defaultGrants();
+  return member.role==='Lead'&&planSeat&&!g.transcriptSet?{...g,transcript:'all'}:g;
+}
 
 const ADDRESS=/^http:\/\/127\.0\.0\.1:(\d{1,5})$/;
 /** An allowlist entry, checked: a label, a loopback address the page's CSP allows, and the agent's pinned key. */
@@ -63,10 +72,10 @@ export async function checkAgent(agent){try{const peer=await peerFor(agent);retu
  * The room's generate() for an external agent member. Yields what was sent, then the signed reply with its provenance.
  * The reply text is the agent's claim, verified only as coming from the pinned key, never as true.
  */
-export async function* agentTurn({member,system,messages,signal},{agents=loadAgents(),peer=peerFor}={}){
+export async function* agentTurn({member,system,messages,signal,planSeat=false},{agents=loadAgents(),peer=peerFor}={}){
   const agent=agents.find(a=>a.id===member.model);
   if(!agent)throw new Error('This agent is no longer in your allowlist. Add it again under Connections → External agents, or remove it from the team.');
-  const {payload,sent}=buildTurn({system,messages,grants:member.grants||defaultGrants()});
+  const {payload,sent}=buildTurn({system,messages,grants:turnGrants(member,{planSeat})});
   yield {sent:{...sent,to:agent.label,nodeId:agent.nodeId}};
   let reply;
   try{reply=await (await peer(agent)).turn(payload,signal);}
