@@ -52,7 +52,12 @@ Browsers differ here. From the https site, Safari (and every iOS browser, all We
 
 ## License
 
-Knights Circle is © 2026 Paul Charydczak, licensed under the [GNU AGPL v3.0 only](LICENSE) (`AGPL-3.0-only`); the third-party files below keep their own licenses.
+Knights Circle
+Copyright (C) 2026 Paul Charydczak
+
+Licensed under the GNU Affero General Public License, version 3 only
+(SPDX-License-Identifier: AGPL-3.0-only). The full license text is in [LICENSE](LICENSE).
+Third-party files keep their own licenses: see [License credits](#license-credits) below.
 
 ## License credits
 
